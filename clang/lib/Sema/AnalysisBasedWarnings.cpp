@@ -550,7 +550,8 @@ struct CheckFallThroughDiagnostics {
   unsigned FunKind; // TODO: use diag::FalloffFunctionKind
   SourceLocation FuncLoc;
 
-  static CheckFallThroughDiagnostics MakeForFunction(const Sema &S, const Decl *Func) {
+  static CheckFallThroughDiagnostics MakeForFunction(const Sema &S,
+                                                     const Decl *Func) {
     CheckFallThroughDiagnostics D;
     D.FuncLoc = Func->getLocation();
     D.diag_FallThrough_HasNoReturn = diag::warn_noreturn_has_return_expr;
@@ -606,7 +607,7 @@ struct CheckFallThroughDiagnostics {
     const DiagnosticsEngine &D = S.getDiagnostics();
     if (FunKind == diag::FalloffFunctionKind::Function) {
       return ((ReturnsVoid ||
-              D.isIgnored(diag::warn_falloff_nonvoid, FuncLoc)) &&
+               D.isIgnored(diag::warn_falloff_nonvoid, FuncLoc)) &&
               !S.getLangOpts().C2y) &&
              (!HasNoReturn ||
               D.isIgnored(diag::warn_noreturn_has_return_expr, FuncLoc)) &&
@@ -660,7 +661,7 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
 
   // Short circuit for compilation speed.
   if (CD.checkDiagnostics(S, ReturnsVoid, HasNoReturn))
-      return;
+    return;
   SourceLocation LBrace = Body->getBeginLoc(), RBrace = Body->getEndLoc();
 
   // cpu_dispatch functions permit empty function bodies for ICC compatibility.
@@ -2713,15 +2714,14 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
   // Warning: check missing 'return'
   if (P.enableCheckFallThrough || S.getLangOpts().C2y) {
     const CheckFallThroughDiagnostics &CD =
-        (isa<BlockDecl>(D)
-             ? CheckFallThroughDiagnostics::MakeForBlock()
-             : (isa<CXXMethodDecl>(D) &&
-                cast<CXXMethodDecl>(D)->getOverloadedOperator() == OO_Call &&
-                cast<CXXMethodDecl>(D)->getParent()->isLambda())
-                   ? CheckFallThroughDiagnostics::MakeForLambda()
-                   : (fscope->isCoroutine()
-                          ? CheckFallThroughDiagnostics::MakeForCoroutine(D)
-                          : CheckFallThroughDiagnostics::MakeForFunction(S, D)));
+        (isa<BlockDecl>(D) ? CheckFallThroughDiagnostics::MakeForBlock()
+         : (isa<CXXMethodDecl>(D) &&
+            cast<CXXMethodDecl>(D)->getOverloadedOperator() == OO_Call &&
+            cast<CXXMethodDecl>(D)->getParent()->isLambda())
+             ? CheckFallThroughDiagnostics::MakeForLambda()
+             : (fscope->isCoroutine()
+                    ? CheckFallThroughDiagnostics::MakeForCoroutine(D)
+                    : CheckFallThroughDiagnostics::MakeForFunction(S, D)));
     CheckFallThroughForBody(S, D, Body, BlockType, CD, AC);
   }
 

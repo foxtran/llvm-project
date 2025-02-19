@@ -550,11 +550,15 @@ struct CheckFallThroughDiagnostics {
   unsigned FunKind; // TODO: use diag::FalloffFunctionKind
   SourceLocation FuncLoc;
 
-  static CheckFallThroughDiagnostics MakeForFunction(const Decl *Func) {
+  static CheckFallThroughDiagnostics MakeForFunction(const Sema &S,
+                                                     const Decl *Func) {
     CheckFallThroughDiagnostics D;
     D.FuncLoc = Func->getLocation();
     D.diag_FallThrough_HasNoReturn = diag::warn_noreturn_has_return_expr;
     D.diag_FallThrough_ReturnsNonVoid = diag::warn_falloff_nonvoid;
+    if (S.getLangOpts().C2y) {
+      D.diag_FallThrough_ReturnsNonVoid = diag::err_falloff_nonvoid;
+    }
 
     // Don't suggest that virtual functions be marked "noreturn", since they
     // might be overridden by non-noreturn functions.
@@ -598,11 +602,13 @@ struct CheckFallThroughDiagnostics {
     return D;
   }
 
-  bool checkDiagnostics(DiagnosticsEngine &D, bool ReturnsVoid,
+  bool checkDiagnostics(const Sema &S, bool ReturnsVoid,
                         bool HasNoReturn) const {
+    const DiagnosticsEngine &D = S.getDiagnostics();
     if (FunKind == diag::FalloffFunctionKind::Function) {
-      return (ReturnsVoid ||
-              D.isIgnored(diag::warn_falloff_nonvoid, FuncLoc)) &&
+      return ((ReturnsVoid ||
+               D.isIgnored(diag::warn_falloff_nonvoid, FuncLoc)) &&
+              !S.getLangOpts().C2y) &&
              (!HasNoReturn ||
               D.isIgnored(diag::warn_noreturn_has_return_expr, FuncLoc)) &&
              (!ReturnsVoid ||
@@ -653,11 +659,9 @@ static void CheckFallThroughForBody(Sema &S, const Decl *D, const Stmt *Body,
     }
   }
 
-  DiagnosticsEngine &Diags = S.getDiagnostics();
-
   // Short circuit for compilation speed.
-  if (CD.checkDiagnostics(Diags, ReturnsVoid, HasNoReturn))
-      return;
+  if (CD.checkDiagnostics(S, ReturnsVoid, HasNoReturn))
+    return;
   SourceLocation LBrace = Body->getBeginLoc(), RBrace = Body->getEndLoc();
 
   // cpu_dispatch functions permit empty function bodies for ICC compatibility.
@@ -2708,17 +2712,16 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
   }
 
   // Warning: check missing 'return'
-  if (P.enableCheckFallThrough) {
+  if (P.enableCheckFallThrough || S.getLangOpts().C2y) {
     const CheckFallThroughDiagnostics &CD =
-        (isa<BlockDecl>(D)
-             ? CheckFallThroughDiagnostics::MakeForBlock()
-             : (isa<CXXMethodDecl>(D) &&
-                cast<CXXMethodDecl>(D)->getOverloadedOperator() == OO_Call &&
-                cast<CXXMethodDecl>(D)->getParent()->isLambda())
-                   ? CheckFallThroughDiagnostics::MakeForLambda()
-                   : (fscope->isCoroutine()
-                          ? CheckFallThroughDiagnostics::MakeForCoroutine(D)
-                          : CheckFallThroughDiagnostics::MakeForFunction(D)));
+        (isa<BlockDecl>(D) ? CheckFallThroughDiagnostics::MakeForBlock()
+         : (isa<CXXMethodDecl>(D) &&
+            cast<CXXMethodDecl>(D)->getOverloadedOperator() == OO_Call &&
+            cast<CXXMethodDecl>(D)->getParent()->isLambda())
+             ? CheckFallThroughDiagnostics::MakeForLambda()
+             : (fscope->isCoroutine()
+                    ? CheckFallThroughDiagnostics::MakeForCoroutine(D)
+                    : CheckFallThroughDiagnostics::MakeForFunction(S, D)));
     CheckFallThroughForBody(S, D, Body, BlockType, CD, AC);
   }
 

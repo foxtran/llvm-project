@@ -167,7 +167,7 @@ loadObj(StringRef Filename, object::OwningBinary<object::ObjectFile> &ObjFile,
   const int WordSize = Is32Bit ? 4 : 8;
   int32_t FuncId = 1;
   uint64_t CurFn = 0;
-  for (; C != Contents.bytes_end(); C += ELFSledEntrySize) {
+  for (auto E = Contents.bytes_end(); C != E; C += ELFSledEntrySize) {
     DataExtractor Extractor(
         StringRef(reinterpret_cast<const char *>(C), ELFSledEntrySize), true,
         8);

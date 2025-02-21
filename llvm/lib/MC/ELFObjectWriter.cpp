@@ -631,7 +631,7 @@ void ELFWriter::computeSymbolTable(MCAssembler &Asm,
 
   for (ELFSymbolData &MSD : LocalSymbolData) {
     // Emit STT_FILE symbols before their associated local symbols.
-    for (; FileNameIt != FileNames.end() && FileNameIt->second <= MSD.Order;
+    for (auto End = FileNames.end(); FileNameIt != End && FileNameIt->second <= MSD.Order;
          ++FileNameIt) {
       Writer.writeSymbol(StrTabBuilder.getOffset(FileNameIt->first),
                          ELF::STT_FILE | ELF::STB_LOCAL, 0, 0, ELF::STV_DEFAULT,
@@ -645,7 +645,7 @@ void ELFWriter::computeSymbolTable(MCAssembler &Asm,
     MSD.Symbol->setIndex(Index++);
     writeSymbol(Asm, Writer, StringIndex, MSD);
   }
-  for (; FileNameIt != FileNames.end(); ++FileNameIt) {
+  for (auto End = FileNames.end(); FileNameIt != End; ++FileNameIt) {
     Writer.writeSymbol(StrTabBuilder.getOffset(FileNameIt->first),
                        ELF::STT_FILE | ELF::STB_LOCAL, 0, 0, ELF::STV_DEFAULT,
                        ELF::SHN_ABS, true);

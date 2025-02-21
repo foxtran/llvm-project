@@ -2083,7 +2083,7 @@ static Value *foldICmpOrXorSubChain(ICmpInst &Cmp, BinaryOperator *Or,
   Value *LhsCmp = Builder.CreateICmp(Pred, CmpValues.rbegin()->first,
                                      CmpValues.rbegin()->second);
 
-  for (auto It = CmpValues.rbegin() + 1; It != CmpValues.rend(); ++It) {
+  for (auto It = CmpValues.rbegin() + 1, REnd = CmpValues.rend(); It != REnd; ++It) {
     Value *RhsCmp = Builder.CreateICmp(Pred, It->first, It->second);
     LhsCmp = Builder.CreateBinOp(BOpc, LhsCmp, RhsCmp);
   }

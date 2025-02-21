@@ -688,7 +688,7 @@ static void raiseUserConstantDataAllocasToEntryBlock(IRBuilderBase &Builder,
 
   // Loop over blocks looking for constant allocas, skipping the entry block
   // as any allocas there are already in the desired location.
-  for (auto Block = std::next(Function->begin(), 1); Block != Function->end();
+  for (auto Block = std::next(Function->begin(), 1), End = Function->end(); Block != End;
        Block++) {
     for (auto Inst = Block->getReverseIterator()->begin();
          Inst != Block->getReverseIterator()->end();) {

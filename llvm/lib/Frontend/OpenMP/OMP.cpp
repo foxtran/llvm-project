@@ -68,7 +68,7 @@ getFirstCompositeRange(iterator_range<ArrayRef<Directive>::iterator> Leafs) {
   if (End == Leafs.end())
     return Empty;
 
-  for (; End != Leafs.end(); ++End) {
+  for (auto LeafsEnd = Leafs.end(); End != LeafsEnd; ++End) {
     if (getDirectiveAssociation(*End) != Association::Loop)
       break;
   }

@@ -71,7 +71,7 @@ void ConstantRangeList::insert(const ConstantRange &NewRange) {
   } else {
     Ranges.push_back(NewRange);
   }
-  for (auto Iter = ExistingTail.begin(); Iter != ExistingTail.end(); Iter++) {
+  for (auto Iter = ExistingTail.begin(), End = ExistingTail.end(); Iter != End; Iter++) {
     if (Ranges.back().getUpper().slt(Iter->getLower())) {
       Ranges.push_back(*Iter);
     } else {

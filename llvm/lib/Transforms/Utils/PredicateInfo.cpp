@@ -528,7 +528,7 @@ Value *PredicateInfoBuilder::materializeStack(unsigned int &Counter,
                                              Value *OrigOp) {
   // Find the first thing we have to materialize
   auto RevIter = RenameStack.rbegin();
-  for (; RevIter != RenameStack.rend(); ++RevIter)
+  for (auto REnd = RenameStack.rend(); RevIter != REnd; ++RevIter)
     if (RevIter->Def)
       break;
 
@@ -536,15 +536,15 @@ Value *PredicateInfoBuilder::materializeStack(unsigned int &Counter,
   // The maximum number of things we should be trying to materialize at once
   // right now is 4, depending on if we had an assume, a branch, and both used
   // and of conditions.
-  for (auto RenameIter = RenameStack.end() - Start;
-       RenameIter != RenameStack.end(); ++RenameIter) {
+  for (auto Begin = RenameStack.begin(), End = RenameStack.end(),
+       RenameIter = End - Start; RenameIter != End; ++RenameIter) {
     auto *Op =
-        RenameIter == RenameStack.begin() ? OrigOp : (RenameIter - 1)->Def;
+        RenameIter == Begin ? OrigOp : (RenameIter - 1)->Def;
     ValueDFS &Result = *RenameIter;
     auto *ValInfo = Result.PInfo;
-    ValInfo->RenamedOp = (RenameStack.end() - Start) == RenameStack.begin()
+    ValInfo->RenamedOp = (End - Start) == Begin
                              ? OrigOp
-                             : (RenameStack.end() - Start - 1)->Def;
+                             : (End - Start - 1)->Def;
     // For edge predicates, we can just place the operand in the block before
     // the terminator.  For assume, we have to place it right before the assume
     // to ensure we dominate all of our uses.  Always insert right before the

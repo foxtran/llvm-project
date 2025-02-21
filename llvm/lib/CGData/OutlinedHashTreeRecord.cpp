@@ -47,7 +47,7 @@ template <> struct CustomMappingTraits<IdHashNodeStableMapTy> {
   }
 
   static void output(IO &io, IdHashNodeStableMapTy &V) {
-    for (auto Iter = V.begin(); Iter != V.end(); ++Iter)
+    for (auto Iter = V.begin(), End = V.end(); Iter != End; ++Iter)
       io.mapRequired(utostr(Iter->first).c_str(), Iter->second);
   }
 };

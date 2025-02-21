@@ -8120,7 +8120,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       // context id as a pair of adjacent (most significant first) 32-bit words.
       assert(Record.size() % 2 == 0);
       StackIds.reserve(Record.size() / 2);
-      for (auto R = Record.begin(); R != Record.end(); R += 2)
+      for (auto R = Record.begin(),  E = Record.end(); R != E; R += 2)
         StackIds.push_back(*R << 32 | *(R + 1));
       break;
     }
@@ -8133,7 +8133,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
     case bitc::FS_PERMODULE_CALLSITE_INFO: {
       unsigned ValueID = Record[0];
       SmallVector<unsigned> StackIdList;
-      for (auto R = Record.begin() + 1; R != Record.end(); R++) {
+      for (auto R = Record.begin() + 1, E = Record.end(); R != E; R++) {
         assert(*R < StackIds.size());
         StackIdList.push_back(TheIndex.addOrGetStackIdIndex(StackIds[*R]));
       }
@@ -8169,7 +8169,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
       // context id as a pair of adjacent (most significant first) 32-bit words.
       assert(Record.size() % 2 == 0);
       PendingContextIds.reserve(Record.size() / 2);
-      for (auto R = Record.begin(); R != Record.end(); R += 2)
+      for (auto R = Record.begin(), E = Record.end(); R != E; R += 2)
         PendingContextIds.push_back(*R << 32 | *(R + 1));
       break;
     }

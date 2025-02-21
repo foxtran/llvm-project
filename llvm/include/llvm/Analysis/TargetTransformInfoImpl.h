@@ -1184,7 +1184,7 @@ public:
     if (Operands.empty())
       return !BaseGV ? TTI::TCC_Free : TTI::TCC_Basic;
 
-    for (auto I = Operands.begin(); I != Operands.end(); ++I, ++GTI) {
+    for (auto I = Operands.begin(), E = Operands.end(); I != E; ++I, ++GTI) {
       TargetType = GTI.getIndexedType();
       // We assume that the cost of Scalar GEP with constant index and the
       // cost of Vector GEP with splat constant index are the same.

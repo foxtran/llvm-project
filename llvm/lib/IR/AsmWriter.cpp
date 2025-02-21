@@ -1770,12 +1770,12 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
       Out << ", ";
     }
 
-    for (User::const_op_iterator OI = CE->op_begin(); OI != CE->op_end();
+    for (User::const_op_iterator OI = CE->op_begin(), E = CE->op_end(); OI != E;
          ++OI) {
       WriterCtx.TypePrinter->print((*OI)->getType(), Out);
       Out << ' ';
       WriteAsOperandInternal(Out, *OI, WriterCtx);
-      if (OI+1 != CE->op_end())
+      if (OI+1 != E)
         Out << ", ";
     }
 

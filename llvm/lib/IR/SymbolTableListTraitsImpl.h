@@ -50,16 +50,16 @@ void SymbolTableListTraits<ValueSubClass, Args...>::setSymTabObject(TPtr *Dest,
 
   if (OldST) {
     // Remove all entries from the previous symtab.
-    for (auto I = ItemList.begin(); I != ItemList.end(); ++I)
-      if (I->hasName())
-        OldST->removeValueName(I->getValueName());
+    for (const auto &I : ItemList)
+      if (I.hasName())
+        OldST->removeValueName(I.getValueName());
   }
 
   if (NewST) {
     // Add all of the items to the new symtab.
-    for (auto I = ItemList.begin(); I != ItemList.end(); ++I)
-      if (I->hasName())
-        NewST->reinsertValue(&*I);
+    for (auto &I : ItemList)
+      if (I.hasName())
+        NewST->reinsertValue(&I);
   }
 }
 

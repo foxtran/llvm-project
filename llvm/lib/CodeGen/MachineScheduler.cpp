@@ -1364,7 +1364,7 @@ void ScheduleDAGMILive::collectVRegUses(SUnit &SU) {
 
     // Record this local VReg use.
     VReg2SUnitMultiMap::iterator UI = VRegUses.find(Reg);
-    for (; UI != VRegUses.end(); ++UI) {
+    for (auto E = VRegUses.end(); UI != E; ++UI) {
       if (UI->SU == &SU)
         break;
     }

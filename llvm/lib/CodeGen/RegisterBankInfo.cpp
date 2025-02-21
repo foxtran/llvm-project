@@ -544,7 +544,7 @@ bool RegisterBankInfo::ValueMapping::partsAllUniform() const {
     return true;
 
   const PartialMapping *First = begin();
-  for (const PartialMapping *Part = First + 1; Part != end(); ++Part) {
+  for (const PartialMapping *Part = First + 1, *End = end(); Part != End; ++Part) {
     if (Part->Length != First->Length || Part->RegBank != First->RegBank)
       return false;
   }

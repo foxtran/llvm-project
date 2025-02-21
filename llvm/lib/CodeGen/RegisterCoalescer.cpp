@@ -777,7 +777,7 @@ bool RegisterCoalescer::hasOtherReachingDefs(LiveInterval &IntA,
     LiveInterval::iterator BI = llvm::upper_bound(IntB, ASeg.start);
     if (BI != IntB.begin())
       --BI;
-    for (; BI != IntB.end() && ASeg.end >= BI->start; ++BI) {
+    for (auto E = IntB.end(); BI != E && ASeg.end >= BI->start; ++BI) {
       if (BI->valno == BValNo)
         continue;
       if (BI->start <= ASeg.start && BI->end > ASeg.start)

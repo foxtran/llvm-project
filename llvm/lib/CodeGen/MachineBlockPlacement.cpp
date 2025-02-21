@@ -1818,7 +1818,7 @@ MachineBasicBlock *MachineBlockPlacement::getFirstUnplacedBlock(
     BlockFilterSet::iterator &PrevUnplacedBlockInFilterIt,
     const BlockFilterSet *BlockFilter) {
   assert(BlockFilter);
-  for (; PrevUnplacedBlockInFilterIt != BlockFilter->end();
+  for (auto E = BlockFilter->end(); PrevUnplacedBlockInFilterIt != E;
        ++PrevUnplacedBlockInFilterIt) {
     BlockChain *C = BlockToChain[*PrevUnplacedBlockInFilterIt];
     if (C != &PlacedChain) {

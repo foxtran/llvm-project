@@ -136,7 +136,7 @@ struct DOTGraphTraits<MachineBlockFrequencyInfo *>
 
         CurFunc = F;
         int O = 0;
-        for (auto MBI = F->begin(); MBI != F->end(); ++MBI, ++O) {
+        for (auto MBI = F->begin(), E = F->end(); MBI != E; ++MBI, ++O) {
           LayoutOrderMap[&*MBI] = O;
         }
       }

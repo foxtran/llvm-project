@@ -727,7 +727,7 @@ static void simplifyARM64Opcodes(std::vector<WinEH::Instruction> &Instructions,
   // backwards for epilogues (i.e. always reverse compared to how the
   // opcodes are stored).
   if (Reverse) {
-    for (auto It = Instructions.rbegin(); It != Instructions.rend(); It++)
+    for (auto It = Instructions.rbegin(), REnd = Instructions.rend(); It != REnd; It++)
       VisitInstruction(*It);
   } else {
     for (WinEH::Instruction &Inst : Instructions)

@@ -221,7 +221,8 @@ DILocation *DILocation::getMergedLocation(DILocation *LocA, DILocation *LocB) {
 
   // If we have found a common starting location, walk up the inlined-at chains
   // and try to produce common locations.
-  for (; ARIt != ALocs.rend() && BRIt != BLocs.rend(); ++ARIt, ++BRIt) {
+  for (auto AREnd = ALocs.rend(), BREnd = BLocs.rend();
+       ARIt != AREnd && BRIt != BREnd; ++ARIt, ++BRIt) {
     DILocation *Tmp = MergeLocPair(*ARIt, *BRIt, Result);
 
     if (!Tmp)

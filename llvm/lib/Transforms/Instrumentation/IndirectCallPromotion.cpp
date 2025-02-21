@@ -760,7 +760,7 @@ bool IndirectCallPromoter::tryToPromoteWithVTableCmp(
       std::set<uint64_t> GUIDSet;
       for (auto [GUID, Count] : VTableGUIDAndCounts)
         GUIDSet.insert(GUID);
-      for (auto Iter = GUIDSet.begin(); Iter != GUIDSet.end(); Iter++) {
+      for (auto Iter = GUIDSet.begin(), End = GUIDSet.end(); Iter != End; Iter++) {
         if (Iter != GUIDSet.begin())
           Remark << ", ";
         Remark << ore::NV("VTable", Symtab->getGlobalVariable(*Iter));

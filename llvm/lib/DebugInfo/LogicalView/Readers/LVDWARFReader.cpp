@@ -1176,7 +1176,7 @@ Error LVDWARFReader::loadTargetInfo(const ObjectFile &Obj) {
 }
 
 void LVDWARFReader::mapRangeAddress(const ObjectFile &Obj) {
-  for (auto Iter = Obj.symbol_begin(); Iter != Obj.symbol_end(); ++Iter) {
+  for (auto Iter = Obj.symbol_begin(), End = Obj.symbol_end(); Iter != End; ++Iter) {
     const SymbolRef &Symbol = *Iter;
 
     Expected<SymbolRef::Type> TypeOrErr = Symbol.getType();

@@ -778,8 +778,9 @@ stackFrameIncludesInlinedCallStack(ArrayRef<Frame> ProfileCallStack,
                                    ArrayRef<uint64_t> InlinedCallStack) {
   auto StackFrame = ProfileCallStack.begin();
   auto InlCallStackIter = InlinedCallStack.begin();
-  for (; StackFrame != ProfileCallStack.end() &&
-         InlCallStackIter != InlinedCallStack.end();
+  auto ProfCSEnd = ProfileCallStack.end();
+  auto InlCSEnd = InlinedCallStack.end();
+  for (; StackFrame != ProfCSEnd && InlCallStackIter != InlCSEnd;
        ++StackFrame, ++InlCallStackIter) {
     uint64_t StackId = computeStackId(*StackFrame);
     if (StackId != *InlCallStackIter)
@@ -787,7 +788,7 @@ stackFrameIncludesInlinedCallStack(ArrayRef<Frame> ProfileCallStack,
   }
   // Return true if we found and matched all stack ids from the call
   // instruction.
-  return InlCallStackIter == InlinedCallStack.end();
+  return InlCallStackIter == InlCSEnd;
 }
 
 static bool isAllocationWithHotColdVariant(const Function *Callee,

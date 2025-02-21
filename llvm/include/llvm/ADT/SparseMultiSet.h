@@ -385,7 +385,7 @@ public:
   /// the number of elements of that key.
   size_type count(const KeyT &Key) const {
     unsigned Ret = 0;
-    for (const_iterator It = find(Key); It != end(); ++It)
+    for (const_iterator It = find(Key), E = end(); It != E; ++It)
       ++Ret;
 
     return Ret;

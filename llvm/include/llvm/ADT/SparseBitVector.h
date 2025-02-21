@@ -546,7 +546,7 @@ public:
     ElementListConstIter Iter1 = Elements.begin();
     ElementListConstIter Iter2 = RHS.Elements.begin();
 
-    for (; Iter1 != Elements.end() && Iter2 != RHS.Elements.end();
+    for (auto E1 = Elements.end(), E2 = RHS.Elements.end(); Iter1 != E1 && Iter2 != E2;
          ++Iter1, ++Iter2) {
       if (*Iter1 != *Iter2)
         return false;

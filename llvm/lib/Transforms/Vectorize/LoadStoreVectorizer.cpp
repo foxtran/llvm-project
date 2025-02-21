@@ -1379,7 +1379,7 @@ void Vectorizer::mergeEquivalenceClasses(EquivalenceClassMap &EQClasses) const {
     for (const auto *UObject : UObjects) {
       auto Target = UObject;
       auto It = IndirectionMap.find(Target);
-      for (; It != IndirectionMap.end(); It = IndirectionMap.find(Target))
+      for (auto E = IndirectionMap.end(); It != E; It = IndirectionMap.find(Target))
         Target = It->second;
       UltimateTargetsMap[UObject] = Target;
     }

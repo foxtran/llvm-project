@@ -849,7 +849,7 @@ private:
       // Otherwise update Metrics for all blocks that will be cloned. If any
       // block is already cloned and would be reused, don't double count it.
       auto DetIt = llvm::find(PathBBs, Determinator);
-      for (auto BBIt = DetIt; BBIt != PathBBs.end(); BBIt++) {
+      for (auto BBIt = DetIt, EndIt = PathBBs.end(); BBIt != EndIt; BBIt++) {
         BB = *BBIt;
         VisitedBB = getClonedBB(BB, NextState, DuplicateMap);
         if (VisitedBB)
@@ -1000,7 +1000,7 @@ private:
     // When there is only one BB in PathBBs, the determinator takes itself as a
     // direct predecessor.
     BasicBlock *PrevBB = PathBBs.size() == 1 ? *DetIt : *std::prev(DetIt);
-    for (auto BBIt = DetIt; BBIt != PathBBs.end(); BBIt++) {
+    for (auto BBIt = DetIt, EndIt = PathBBs.end(); BBIt != EndIt; BBIt++) {
       BasicBlock *BB = *BBIt;
       BlocksToClean.insert(BB);
 

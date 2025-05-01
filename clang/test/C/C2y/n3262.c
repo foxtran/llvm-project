@@ -17,4 +17,4 @@
  * copy is made and diagnosing on copy (or on use of the copied va_list).
  */
 
-int main() {}
+int main() { return 0; }

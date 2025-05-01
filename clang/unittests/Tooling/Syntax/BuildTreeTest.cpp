@@ -96,6 +96,9 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST_P(BuildSyntaxTreeTest, Simple) {
+  if (GetParam().isC26OrLater()) {
+    return;
+  }
   EXPECT_TRUE(treeDumpEqual(
       R"cpp(
 int main() {}

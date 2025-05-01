@@ -4327,7 +4327,9 @@ TEST_P(ASTMatchersTest, hasOperator) {
 }
 
 TEST_P(ASTMatchersTest, IsMain) {
-  EXPECT_TRUE(matches("int main() {}", functionDecl(isMain())));
+  EXPECT_TRUE(matches("void main() { }", functionDecl(isMain())));
+
+  EXPECT_TRUE(matches("int main() { return 0; }", functionDecl(isMain())));
 
   EXPECT_TRUE(notMatches("int main2() { return 0; }", functionDecl(isMain())));
 }

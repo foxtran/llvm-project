@@ -61,6 +61,8 @@ struct TestClangConfig {
 
   bool isC99OrLater() const { return isCOrLater(99); }
 
+  bool isC26OrLater() const { return isCOrLater(26); }
+
   bool isCOrEarlier(int MaximumStdVersion) const {
     return isC() && (isC(MaximumStdVersion) || !isCOrLater(MaximumStdVersion));
   }

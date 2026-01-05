@@ -239,7 +239,8 @@ void Flang::addCodegenOptions(const ArgList &Args,
        options::OPT_frepack_arrays_contiguity_EQ,
        options::OPT_fstack_repack_arrays, options::OPT_fno_stack_repack_arrays,
        options::OPT_ftime_report, options::OPT_ftime_report_EQ,
-       options::OPT_funroll_loops, options::OPT_fno_unroll_loops});
+       options::OPT_funroll_loops, options::OPT_fno_unroll_loops,
+       options::OPT_fcheck_unreachable, options::OPT_fno_check_unreachable});
   if (Args.hasArg(options::OPT_fcoarray))
     CmdArgs.push_back("-fcoarray");
 }

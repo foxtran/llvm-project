@@ -63,6 +63,10 @@ ENUM_LOWERINGOPT(StackRepackArrays, unsigned, 1, 0)
 /// in the leading dimension.
 ENUM_LOWERINGOPT(RepackArraysWhole, unsigned, 1, 0)
 
+/// If true, generates code for checking UNREACHABLE UNCHECKED statement
+/// Ruled by -fcheck-unreachable
+ENUM_LOWERINGOPT(CheckUnreachable, unsigned, 1, 0)
+
 /// If true, CUDA Fortran runtime check is inserted.
 ENUM_LOWERINGOPT(CUDARuntimeCheck, unsigned, 1, 0)
 

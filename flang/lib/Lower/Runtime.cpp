@@ -62,6 +62,7 @@ void Fortran::lower::genStopStatement(
       Fortran::parser::StopStmt::Kind::Unreachable;
   fir::FirOpBuilder &builder = converter.getFirOpBuilder();
   mlir::Location loc = converter.getCurrentLocation();
+  const Fortran::lower::LoweringOptions &opts = converter.getLoweringOptions();
   Fortran::lower::StatementContext stmtCtx;
   llvm::SmallVector<mlir::Value> operands;
   mlir::func::FuncOp callee;
@@ -125,7 +126,7 @@ void Fortran::lower::genStopStatement(
         loc, calleeType.getInput(operands.size()), 0));
   }
 
-  if (!isUnreachable) {
+  if (!isUnreachable || opts.getCheckUnreachable()) {
     fir::CallOp::create(builder, loc, callee, operands);
   }
   auto blockIsUnterminated = [&builder]() {

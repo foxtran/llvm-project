@@ -57,5 +57,7 @@ program main
   if (i .eq. 0) error stop 3, quiet = .not. l
   if (i .eq. 0) error stop 3, quiet = larray(1)
   if (i .eq. 0) error stop , quiet = .false.
+  if (i .eq. 0) unreachable
+  if (i .eq. 0) unreachable unchecked
   stop
 end program

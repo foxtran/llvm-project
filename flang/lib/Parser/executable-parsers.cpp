@@ -100,7 +100,8 @@ TYPE_CONTEXT_PARSER("execution part"_en_US,
 //        nullify-stmt | open-stmt | pointer-assignment-stmt | print-stmt |
 //        read-stmt | return-stmt | rewind-stmt | stop-stmt | sync-all-stmt |
 //        sync-images-stmt | sync-memory-stmt | sync-team-stmt | unlock-stmt |
-//        wait-stmt | where-stmt | write-stmt | computed-goto-stmt | forall-stmt
+//        wait-stmt | where-stmt | write-stmt | computed-goto-stmt |
+//        forall-stmt | unreachable-stmt
 // R1159 continue-stmt -> CONTINUE
 // R1163 fail-image-stmt -> FAIL IMAGE
 TYPE_PARSER(first(construct<ActionStmt>(indirect(Parser<AllocateStmt>{})),
@@ -130,7 +131,8 @@ TYPE_PARSER(first(construct<ActionStmt>(indirect(Parser<AllocateStmt>{})),
     construct<ActionStmt>(indirect(Parser<ReadStmt>{})),
     construct<ActionStmt>(indirect(Parser<ReturnStmt>{})),
     construct<ActionStmt>(indirect(Parser<RewindStmt>{})),
-    construct<ActionStmt>(indirect(Parser<StopStmt>{})), // & error-stop-stmt
+    // stop-stmt | error-stop-stmt | unreachable-stmt
+    construct<ActionStmt>(indirect(Parser<StopStmt>{})),
     construct<ActionStmt>(indirect(Parser<SyncAllStmt>{})),
     construct<ActionStmt>(indirect(Parser<SyncImagesStmt>{})),
     construct<ActionStmt>(indirect(Parser<SyncMemoryStmt>{})),
@@ -460,10 +462,15 @@ TYPE_CONTEXT_PARSER("computed GOTO statement"_en_US,
 // R1160 stop-stmt -> STOP [stop-code] [, QUIET = scalar-logical-expr]
 // R1161 error-stop-stmt ->
 //         ERROR STOP [stop-code] [, QUIET = scalar-logical-expr]
+// flang-extension: unreachable-stmt -> UNREACHABLE [UNCHECKED]
 TYPE_CONTEXT_PARSER("STOP statement"_en_US,
     construct<StopStmt>("STOP" >> pure(StopStmt::Kind::Stop) ||
             "ERROR STOP"_sptok >> pure(StopStmt::Kind::ErrorStop),
-        maybe(Parser<StopCode>{}), maybe(", QUIET =" >> scalarLogicalExpr)))
+        maybe(Parser<StopCode>{}), maybe(", QUIET =" >> scalarLogicalExpr)) ||
+        construct<StopStmt>("UNREACHABLE UNCHECKED"_sptok >>
+                    pure(StopStmt::Kind::Unreachable) ||
+                "UNREACHABLE" >> pure(StopStmt::Kind::Unreachable),
+            empty(Parser<StopCode>{}), empty(scalarLogicalExpr)))
 
 // R1162 stop-code -> scalar-default-char-expr | scalar-int-expr
 // The two alternatives for stop-code can't be distinguished at

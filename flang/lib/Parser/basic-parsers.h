@@ -543,6 +543,27 @@ template <typename PA> inline constexpr auto maybe(PA parser) {
   return MaybeParser<PA>{parser};
 }
 
+// If x is a parser returning some type A, then empty(x) returns a
+// parser that returns empty std::optional<A> without consuming input, always succeeding.
+template <typename PA> class EmptyParser {
+  using paType = typename PA::resultType;
+
+public:
+  using resultType = std::optional<paType>;
+  constexpr EmptyParser(const EmptyParser &) = default;
+  constexpr EmptyParser(PA parser) : parser_{parser} {}
+  std::optional<resultType> Parse(ParseState &state) const {
+    return resultType{};
+  }
+
+private:
+  const BacktrackingParser<PA> parser_;
+};
+
+template <typename PA> inline constexpr auto empty(PA parser) {
+  return EmptyParser<PA>{parser};
+}
+
 // If x is a parser, then defaulted(x) returns a parser that always
 // succeeds.  When x succeeds, its result is that of x; otherwise, its
 // result is a default-constructed value of x's result type.

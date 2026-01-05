@@ -478,6 +478,7 @@ end
   to be a pointer so long as it is `INTENT(IN)`.
   (This extension is not yet supported for procedure pointer component
   interfaces.)
+* `UNREACHABLE UNCHECKED` statement
 
 ### Extensions supported when enabled by options
 

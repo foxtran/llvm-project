@@ -10,9 +10,9 @@
 ! CHECK:           cf.cond_br %[[VAL_2]], ^bb1, ^bb2
 ! CHECK:         ^bb1:
 ! CHECK:           %[[VAL_3:.*]] = arith.constant 0 : i32
-! CHECK:           %[[VAL_4:.*]] = arith.constant false
+! CHECK:           %[[VAL_4:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_5:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_3]], %[[VAL_4]], %[[VAL_5]]) fastmath<contract> : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_3]], %[[VAL_4]], %[[VAL_5]]) fastmath<contract> : (i32, i32, i1) -> ()
 ! CHECK:           fir.unreachable
 ! CHECK:         ^bb2:
 ! CHECK:           cf.br ^bb3

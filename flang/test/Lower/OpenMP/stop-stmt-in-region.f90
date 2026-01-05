@@ -7,9 +7,9 @@
 ! CHECK-LABEL: func.func @_QPtest_stop_in_region1() {
 ! CHECK:         omp.parallel   {
 ! CHECK:           %[[VAL_0:.*]] = arith.constant 1 : i32
-! CHECK:           %[[VAL_1:.*]] = arith.constant false
+! CHECK:           %[[VAL_1:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_2:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_0]], %[[VAL_1]], %[[VAL_2]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_0]], %[[VAL_1]], %[[VAL_2]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK-NOT:       fir.unreachable
 ! CHECK:           omp.terminator
 ! CHECK:         }
@@ -26,9 +26,9 @@ end
 ! CHECK:         %{{.*}} = fir.alloca i32 {bindc_name = "x", uniq_name = "_QFtest_stop_in_region2Ex"}
 ! CHECK:         omp.parallel   {
 ! CHECK:           %[[VAL_1:.*]] = arith.constant 1 : i32
-! CHECK:           %[[VAL_2:.*]] = arith.constant false
+! CHECK:           %[[VAL_2:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_3:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_1]], %[[VAL_2]], %[[VAL_3]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_1]], %[[VAL_2]], %[[VAL_3]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK:           omp.terminator
 ! CHECK:         }
 ! CHECK:         return
@@ -54,9 +54,9 @@ end
 ! CHECK:           cf.cond_br %[[VAL_4]], ^bb1, ^bb2
 ! CHECK:         ^bb1:
 ! CHECK:           %[[VAL_5:.*]] = fir.load %[[VAL_0_DECL]]#0 : !fir.ref<i32>
-! CHECK:           %[[VAL_6:.*]] = arith.constant false
+! CHECK:           %[[VAL_6:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_7:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_5]], %[[VAL_6]], %[[VAL_7]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_5]], %[[VAL_6]], %[[VAL_7]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK:           omp.terminator
 ! CHECK:         ^bb2:
 ! CHECK:           omp.terminator
@@ -98,9 +98,9 @@ end
 ! CHECK:             cf.cond_br %[[VAL_10]], ^bb2, ^bb3
 ! CHECK:           ^bb2:
 ! CHECK:             %[[VAL_11:.*]] = fir.load %[[VAL_2_DECL]]#0 : !fir.ref<i32>
-! CHECK:             %[[VAL_12:.*]] = arith.constant false
+! CHECK:             %[[VAL_12:.*]] = arith.constant 0 : i32
 ! CHECK:             %[[VAL_13:.*]] = arith.constant false
-! CHECK:             fir.call @_FortranAStopStatement(%[[VAL_11]], %[[VAL_12]], %[[VAL_13]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:             fir.call @_FortranAStopStatement(%[[VAL_11]], %[[VAL_12]], %[[VAL_13]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK:             omp.yield
 ! CHECK:           ^bb3:
 ! CHECK:             omp.yield
@@ -124,7 +124,7 @@ end
 
 !CHECK-LABEL: func.func @_QPtest_stop_in_region5
 !CHECK:   omp.parallel   {
-!CHECK:     {{.*}} fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i1, i1) -> ()
+!CHECK:     {{.*}} fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i32, i1) -> ()
 !CHECK:     omp.terminator
 !CHECK:   }
 !CHECK:   return
@@ -141,10 +141,10 @@ end
 !CHECK:  omp.parallel   {
 !CHECK:    cf.cond_br %{{.*}}, ^[[BB1:.*]], ^[[BB2:.*]]
 !CHECK:  ^[[BB1]]:
-!CHECK:    {{.*}}fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i1, i1) -> ()
+!CHECK:    {{.*}}fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i32, i1) -> ()
 !CHECK:    omp.terminator
 !CHECK:  ^[[BB2]]:
-!CHECK:    {{.*}}fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i1, i1) -> ()
+!CHECK:    {{.*}}fir.call @_FortranAStopStatement({{.*}}, {{.*}}, {{.*}}) fastmath<contract> : (i32, i32, i1) -> ()
 !CHECK:    omp.terminator
 !CHECK:  }
 !CHECK:  return

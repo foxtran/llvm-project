@@ -139,8 +139,7 @@ end
 ! CHECK:          b1:  // pred: ^bb0
 ! CHECK:          %[[C0_I32:.*]] = arith.constant 0 : i32
 ! CHECK:          %[[FALSE:.*]] = arith.constant false
-! CHECK:          %[[FALSE_0:.*]] = arith.constant false
-! CHECK:          fir.call @_FortranAStopStatement(%[[C0_I32]], %[[FALSE]], %[[FALSE]]_0) fastmath<contract> : (i32, i1, i1) -> ()
+! CHECK:          fir.call @_FortranAStopStatement(%[[C0_I32]], %[[C0_I32]]_0, %[[FALSE]]) fastmath<contract> : (i32, i32, i1) -> ()
 ! CHECK:          fir.unreachable
 ! CHECK:          b2:  // pred: ^bb0
 ! CHECK:          return

@@ -79,9 +79,9 @@ end program
 ! CHECK:           cf.cond_br %[[VAL_44]], ^bb1, ^bb2
 ! CHECK:         ^bb1:
 ! CHECK:           %[[VAL_45:.*]] = arith.constant 1 : i32
-! CHECK:           %[[VAL_46:.*]] = arith.constant false
+! CHECK:           %[[VAL_46:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_47:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_45]], %[[VAL_46]], %[[VAL_47]]) fastmath<contract> : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_45]], %[[VAL_46]], %[[VAL_47]]) fastmath<contract> : (i32, i32, i1) -> ()
 ! CHECK:           fir.unreachable
 ! CHECK:         ^bb2:
 ! CHECK:           return

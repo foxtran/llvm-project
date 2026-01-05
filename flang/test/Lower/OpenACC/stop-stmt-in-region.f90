@@ -6,9 +6,9 @@
 ! CHECK-LABEL: func.func @_QPtest_stop_in_region1() {
 ! CHECK:         acc.parallel {
 ! CHECK:           %[[VAL_0:.*]] = arith.constant 1 : i32
-! CHECK:           %[[VAL_1:.*]] = arith.constant false
+! CHECK:           %[[VAL_1:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_2:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_0]], %[[VAL_1]], %[[VAL_2]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_0]], %[[VAL_1]], %[[VAL_2]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK:           acc.yield
 ! CHECK:         }
 ! CHECK:         return
@@ -24,9 +24,9 @@ end
 ! CHECK:         %[[VAL_0:.*]] = fir.alloca i32 {bindc_name = "x", uniq_name = "_QFtest_stop_in_region2Ex"}
 ! CHECK:         acc.parallel {
 ! CHECK:           %[[VAL_1:.*]] = arith.constant 1 : i32
-! CHECK:           %[[VAL_2:.*]] = arith.constant false
+! CHECK:           %[[VAL_2:.*]] = arith.constant 0 : i32
 ! CHECK:           %[[VAL_3:.*]] = arith.constant false
-! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_1]], %[[VAL_2]], %[[VAL_3]]) {{.*}} : (i32, i1, i1) -> ()
+! CHECK:           fir.call @_FortranAStopStatement(%[[VAL_1]], %[[VAL_2]], %[[VAL_3]]) {{.*}} : (i32, i32, i1) -> ()
 ! CHECK:           acc.yield
 ! CHECK:         }
 ! CHECK:         return

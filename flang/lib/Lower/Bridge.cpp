@@ -6084,7 +6084,7 @@ private:
     genFailImageStatement(*this);
   }
 
-  // call STOP, ERROR STOP in runtime
+  // call STOP, ERROR STOP, and UNREACHABLE in runtime
   void genFIR(const Fortran::parser::StopStmt &stmt) {
     genStopStatement(*this, stmt);
   }

@@ -57,6 +57,9 @@ void Fortran::lower::genStopStatement(
     const Fortran::parser::StopStmt &stmt) {
   const bool isError = std::get<Fortran::parser::StopStmt::Kind>(stmt.t) ==
                        Fortran::parser::StopStmt::Kind::ErrorStop;
+  const bool isUnreachable =
+      std::get<Fortran::parser::StopStmt::Kind>(stmt.t) ==
+      Fortran::parser::StopStmt::Kind::Unreachable;
   fir::FirOpBuilder &builder = converter.getFirOpBuilder();
   mlir::Location loc = converter.getCurrentLocation();
   Fortran::lower::StatementContext stmtCtx;
@@ -97,14 +100,19 @@ void Fortran::lower::genStopStatement(
     calleeType = callee.getFunctionType();
     // Default to values are advised in F'2023 11.4 p2.
     operands.push_back(builder.createIntegerConstant(
-        loc, calleeType.getInput(0), isError ? 1 : 0));
+        loc, calleeType.getInput(0), isError || isUnreachable ? 1 : 0));
   }
 
-  // Second operand indicates ERROR STOP
-  operands.push_back(builder.createIntegerConstant(
-      loc, calleeType.getInput(operands.size()), isError));
+  // Second operand indicates whether STOP / ERROR STOP / UNREACHABLE are used
+  operands.push_back(
+      builder.createIntegerConstant(loc, calleeType.getInput(operands.size()),
+                                    isUnreachable ? 2
+                                    : isError     ? 1
+                                                  : 0));
 
-  // Third operand indicates QUIET (default to false).
+  // Third operand indicates QUIET:
+  // default to false for stop-stmt and error-stop-stmt (F'2023 11.4 p3)
+  // default to false for unreachable-stmt (implementation-defined)
   if (const auto &quiet =
           std::get<std::optional<Fortran::parser::ScalarLogicalExpr>>(stmt.t)) {
     const SomeExpr *expr = Fortran::semantics::GetExpr(*quiet);
@@ -117,7 +125,9 @@ void Fortran::lower::genStopStatement(
         loc, calleeType.getInput(operands.size()), 0));
   }
 
-  fir::CallOp::create(builder, loc, callee, operands);
+  if (!isUnreachable) {
+    fir::CallOp::create(builder, loc, callee, operands);
+  }
   auto blockIsUnterminated = [&builder]() {
     mlir::Block *currentBlock = builder.getBlock();
     return currentBlock->empty() ||

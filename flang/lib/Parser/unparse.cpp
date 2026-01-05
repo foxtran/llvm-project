@@ -1155,10 +1155,19 @@ public:
     Word("CONTINUE");
   }
   void Unparse(const StopStmt &x) { // R1160, R1161
-    if (std::get<StopStmt::Kind>(x.t) == StopStmt::Kind::ErrorStop) {
-      Word("ERROR ");
+    switch (std::get<StopStmt::Kind>(x.t)) {
+      default:
+        llvm_unreachable("Unexpected StopStmt::Kind");
+      case StopStmt::Kind::Unreachable:
+        Word("UNREACHABLE UNCHECKED");
+        return;
+      case StopStmt::Kind::ErrorStop:
+        Word("ERROR ");
+        [[fallthrough]];
+      case StopStmt::Kind::Stop:
+        Word("STOP");
     }
-    Word("STOP"), Walk(" ", std::get<std::optional<StopCode>>(x.t));
+    Walk(" ", std::get<std::optional<StopCode>>(x.t));
     Walk(", QUIET=", std::get<std::optional<ScalarLogicalExpr>>(x.t));
   }
   void Unparse(const FailImageStmt &) { // R1163

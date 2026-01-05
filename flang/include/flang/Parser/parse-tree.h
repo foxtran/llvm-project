@@ -492,7 +492,8 @@ EMPTY_CLASS(FailImageStmt);
 //        nullify-stmt | open-stmt | pointer-assignment-stmt | print-stmt |
 //        read-stmt | return-stmt | rewind-stmt | stop-stmt | sync-all-stmt |
 //        sync-images-stmt | sync-memory-stmt | sync-team-stmt | unlock-stmt |
-//        wait-stmt | where-stmt | write-stmt | computed-goto-stmt | forall-stmt
+//        wait-stmt | where-stmt | write-stmt | computed-goto-stmt |
+//        forall-stmt | unreachable-stmt
 struct ActionStmt {
   UNION_CLASS_BOILERPLATE(ActionStmt);
   std::variant<common::Indirection<AllocateStmt>,
@@ -2546,8 +2547,9 @@ WRAPPER_CLASS(StopCode, Scalar<Expr>);
 // R1160 stop-stmt -> STOP [stop-code] [, QUIET = scalar-logical-expr]
 // R1161 error-stop-stmt ->
 //         ERROR STOP [stop-code] [, QUIET = scalar-logical-expr]
+// flang extension: unreachable-stmt -> UNREACHABLE UNCHECKED
 struct StopStmt {
-  ENUM_CLASS(Kind, Stop, ErrorStop)
+  ENUM_CLASS(Kind, Stop, ErrorStop, Unreachable)
   TUPLE_CLASS_BOILERPLATE(StopStmt);
   std::tuple<Kind, std::optional<StopCode>, std::optional<ScalarLogicalExpr>> t;
 };

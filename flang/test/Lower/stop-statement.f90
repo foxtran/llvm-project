@@ -73,5 +73,17 @@ subroutine stop_char_lit
   stop 'crash'
 end subroutine stop_char_lit
 
+! CHECK-LABEL: unreachable_test
+subroutine unreachable_test
+  ! CHECK: fir.unreachable
+  unreachable
+end subroutine unreachable_test
+
+! CHECK-LABEL: unreachable_unchecked_test
+subroutine unreachable_unchecked_test
+  ! CHECK: fir.unreachable
+  unreachable unchecked
+end subroutine unreachable_unchecked_test
+
 ! CHECK-DAG: func private @_Fortran{{.*}}StopStatement(i32, i32, i1)
 ! CHECK-DAG: func private @_Fortran{{.*}}StopStatementText(!fir.ref<i8>, i64, i32, i1)

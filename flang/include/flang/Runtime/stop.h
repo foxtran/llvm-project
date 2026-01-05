@@ -18,10 +18,10 @@ FORTRAN_EXTERN_C_BEGIN
 
 // Program-initiated image stop
 NORETURN RT_API_ATTRS void RTNAME(StopStatement)(
-    int code DEFAULT_VALUE(EXIT_SUCCESS), bool isErrorStop DEFAULT_VALUE(false),
+    int code DEFAULT_VALUE(EXIT_SUCCESS), int kindStop DEFAULT_VALUE(0),
     bool quiet DEFAULT_VALUE(false));
 NORETURN RT_API_ATTRS void RTNAME(StopStatementText)(const char *, size_t,
-    bool isErrorStop DEFAULT_VALUE(false), bool quiet DEFAULT_VALUE(false));
+    int kindStop DEFAULT_VALUE(0), bool quiet DEFAULT_VALUE(false));
 void RTNAME(PauseStatement)(NO_ARGUMENTS);
 void RTNAME(PauseStatementInt)(int);
 void RTNAME(PauseStatementText)(const char *, size_t);

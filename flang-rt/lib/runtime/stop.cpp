@@ -66,17 +66,25 @@ static void CloseAllExternalUnits(const char *why) {
 }
 
 [[noreturn]] RT_API_ATTRS void RTNAME(StopStatement)(
-    int code, bool isErrorStop, bool quiet) {
+    int code, int kindStop, bool quiet) {
+  constexpr auto kindString = [](int kindStop) -> const char * {
+    switch (kindStop) {
+    case 0:
+      return "STOP";
+    case 1:
+      return "ERROR STOP";
+    case 2:
+      return "UNREACHABLE UNCHECKED";
+    default:
+      return "UNKNOWN STOP";
+    }
+  };
 #if defined(RT_DEVICE_COMPILATION)
   if (Fortran::runtime::executionEnvironment.noStopMessage && code == 0) {
     quiet = true;
   }
   if (!quiet) {
-    if (isErrorStop) {
-      std::printf("Fortran ERROR STOP");
-    } else {
-      std::printf("Fortran STOP");
-    }
+    std::printf("Fortran %s", kindString(kindStop));
     if (code != EXIT_SUCCESS) {
       std::printf(": code %d\n", code);
     }
@@ -89,7 +97,7 @@ static void CloseAllExternalUnits(const char *why) {
     quiet = true;
   }
   if (!quiet) {
-    std::fprintf(stderr, "Fortran %s", isErrorStop ? "ERROR STOP" : "STOP");
+    std::fprintf(stderr, "Fortran %s", kindString(kindStop));
     if (code != EXIT_SUCCESS) {
       std::fprintf(stderr, ": code %d\n", code);
     }
@@ -101,29 +109,40 @@ static void CloseAllExternalUnits(const char *why) {
 }
 
 [[noreturn]] RT_API_ATTRS void RTNAME(StopStatementText)(
-    const char *code, std::size_t length, bool isErrorStop, bool quiet) {
+    const char *code, std::size_t length, int kindStop, bool quiet) {
+  constexpr auto kindString = [](int kindStop) -> const char * {
+    switch (kindStop) {
+    case 0:
+      return "STOP";
+    case 1:
+      return "ERROR STOP";
+    case 2:
+      return "UNREACHABLE UNCHECKED";
+    default:
+      return "UNKNOWN STOP";
+    }
+  };
 #if defined(RT_DEVICE_COMPILATION)
   if (!quiet) {
-    if (Fortran::runtime::executionEnvironment.noStopMessage && !isErrorStop) {
+    if (Fortran::runtime::executionEnvironment.noStopMessage && kindStop == 0) {
       std::printf("%s\n", code);
     } else {
-      std::printf(
-          "Fortran %s: %s\n", isErrorStop ? "ERROR STOP" : "STOP", code);
+      std::printf("Fortran %s: %s\n", kindString(kindStop), code);
     }
   }
   Fortran::runtime::DeviceTrap();
 #else
   CloseAllExternalUnits("STOP statement");
   if (!quiet) {
-    if (Fortran::runtime::executionEnvironment.noStopMessage && !isErrorStop) {
+    if (Fortran::runtime::executionEnvironment.noStopMessage && kindStop == 0) {
       std::fprintf(stderr, "%.*s\n", static_cast<int>(length), code);
     } else {
-      std::fprintf(stderr, "Fortran %s: %.*s\n",
-          isErrorStop ? "ERROR STOP" : "STOP", static_cast<int>(length), code);
+      std::fprintf(stderr, "Fortran %s: %.*s\n", kindString(kindStop),
+          static_cast<int>(length), code);
     }
     DescribeIEEESignaledExceptions();
   }
-  if (isErrorStop) {
+  if (kindStop != 0) {
     std::exit(EXIT_FAILURE);
   } else {
     std::exit(EXIT_SUCCESS);

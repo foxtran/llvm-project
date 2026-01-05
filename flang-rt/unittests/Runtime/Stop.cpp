@@ -36,19 +36,27 @@ TEST(TestProgramEnd, StopTestNoStopMessage) {
 TEST(TestProgramEnd, StopMessageTest) {
   static const char *message{"bye bye"};
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/false, /*quiet=*/false),
+                  /*kindStop=*/0, /*quiet=*/false),
       testing::ExitedWithCode(EXIT_SUCCESS), "Fortran STOP: bye bye");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/false, /*quiet=*/true),
+                  /*kindStop=*/0, /*quiet=*/true),
       testing::ExitedWithCode(EXIT_SUCCESS), "");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/true, /*quiet=*/false),
+                  /*kindStop=*/1, /*quiet=*/false),
       testing::ExitedWithCode(EXIT_FAILURE), "Fortran ERROR STOP: bye bye");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/true, /*quiet=*/true),
+                  /*kindStop=*/1, /*quiet=*/true),
+      testing::ExitedWithCode(EXIT_FAILURE), "");
+
+  EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
+                  /*kindStop=*/2, /*quiet=*/false),
+      testing::ExitedWithCode(EXIT_FAILURE), "Fortran UNREACHABLE UNCHECKED: bye bye");
+
+  EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
+                  /*kindStop=*/2, /*quiet=*/true),
       testing::ExitedWithCode(EXIT_FAILURE), "");
 }
 
@@ -58,19 +66,27 @@ TEST(TestProgramEnd, NoStopMessageTest) {
       0, nullptr, nullptr, nullptr);
   static const char *message{"bye bye"};
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/false, /*quiet=*/false),
+                  /*kindStop=*/0, /*quiet=*/false),
       testing::ExitedWithCode(EXIT_SUCCESS), "bye bye");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/false, /*quiet=*/true),
+                  /*kindStop=*/0, /*quiet=*/true),
       testing::ExitedWithCode(EXIT_SUCCESS), "");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/true, /*quiet=*/false),
+                  /*kindStop=*/1, /*quiet=*/false),
       testing::ExitedWithCode(EXIT_FAILURE), "Fortran ERROR STOP: bye bye");
 
   EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
-                  /*isErrorStop=*/true, /*quiet=*/true),
+                  /*kindStop=*/1, /*quiet=*/true),
+      testing::ExitedWithCode(EXIT_FAILURE), "");
+
+  EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
+                  /*kindStop=*/2, /*quiet=*/false),
+      testing::ExitedWithCode(EXIT_FAILURE), "Fortran UNREACHABLE UNCHECKED: bye bye");
+
+  EXPECT_EXIT(RTNAME(StopStatementText)(message, std::strlen(message),
+                  /*kindStop=*/2, /*quiet=*/true),
       testing::ExitedWithCode(EXIT_FAILURE), "");
 }
 

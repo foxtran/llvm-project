@@ -279,9 +279,9 @@
   ! CHECK:     %[[V_225:[0-9]+]] = fir.convert %[[V_224]] : (i8) -> i32
   ! CHECK:     %[[V_226:[0-9]+]] = fir.call @_FortranAMapException(%[[V_225]]) fastmath<contract> : (i32) -> i32
   ! CHECK:     fir.if %false{{[_0-9]*}} {
-  ! CHECK:       fir.call {{.*}}feenableexcept(%[[V_226]]) fastmath<contract> : (i32)
+  ! CHECK:       fir.call @_FortranAfeenableexcept(%[[V_226]]) fastmath<contract> : (i32)
   ! CHECK:     } else {
-  ! CHECK:       fir.call {{.*}}fedisableexcept(%[[V_226]]) fastmath<contract> : (i32)
+  ! CHECK:       fir.call @_FortranAfedisableexcept(%[[V_226]]) fastmath<contract> : (i32)
   ! CHECK:     }
   call ieee_set_halting_mode(ieee_invalid, .false.)
 
@@ -306,9 +306,9 @@
   ! CHECK:     %[[V_247:[0-9]+]] = fir.convert %[[V_246]] : (i8) -> i32
   ! CHECK:     %[[V_248:[0-9]+]] = fir.call @_FortranAMapException(%[[V_247]]) fastmath<contract> : (i32) -> i32
   ! CHECK:     fir.if %true{{[_0-9]*}} {
-  ! CHECK:       fir.call {{.*}}feenableexcept(%[[V_248]]) fastmath<contract> : (i32)
+  ! CHECK:       fir.call @_FortranAfeenableexcept(%[[V_248]]) fastmath<contract> : (i32)
   ! CHECK:     } else {
-  ! CHECK:       fir.call {{.*}}fedisableexcept(%[[V_248]]) fastmath<contract> : (i32)
+  ! CHECK:       fir.call @_FortranAfedisableexcept(%[[V_248]]) fastmath<contract> : (i32)
   ! CHECK:     }
   call ieee_set_halting_mode(ieee_invalid, .true.)
 
@@ -335,9 +335,9 @@
   ! CHECK:       %[[V_313:[0-9]+]] = fir.convert %[[V_312]] : (i8) -> i32
   ! CHECK:       %[[V_314:[0-9]+]] = fir.call @_FortranAMapException(%[[V_313]]) fastmath<contract> : (i32) -> i32
   ! CHECK:       fir.if %false{{[_0-9]*}} {
-  ! CHECK:         fir.call {{.*}}feenableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfeenableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       } else {
-  ! CHECK:         fir.call {{.*}}fedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       }
   ! CHECK:     }
   call ieee_set_halting_mode([ieee_invalid, ieee_overflow], .false.)
@@ -373,9 +373,9 @@
   ! CHECK:       %[[V_316:[0-9]+]] = fir.call @_FortranAMapException(%[[V_315]]) fastmath<contract> : (i32) -> i32
   ! CHECK:       %[[V_317:[0-9]+]] = fir.convert %[[V_312]] : (!fir.logical<4>) -> i1
   ! CHECK:       fir.if %[[V_317]] {
-  ! CHECK:         fir.call {{.*}}feenableexcept(%[[V_316]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfeenableexcept(%[[V_316]]) fastmath<contract> : (i32)
   ! CHECK:       } else {
-  ! CHECK:         fir.call {{.*}}fedisableexcept(%[[V_316]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfedisableexcept(%[[V_316]]) fastmath<contract> : (i32)
   ! CHECK:       }
   ! CHECK:     }
   call ieee_set_halting_mode([ieee_invalid, ieee_overflow], [.false., .true.])
@@ -407,9 +407,9 @@
   ! CHECK:       %[[V_313:[0-9]+]] = fir.convert %[[V_312]] : (i8) -> i32
   ! CHECK:       %[[V_314:[0-9]+]] = fir.call @_FortranAMapException(%[[V_313]]) fastmath<contract> : (i32) -> i32
   ! CHECK:       fir.if %true{{[_0-9]*}} {
-  ! CHECK:         fir.call {{.*}}feenableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfeenableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       } else {
-  ! CHECK:         fir.call {{.*}}fedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       }
   ! CHECK:     }
   call ieee_set_halting_mode(ieee_usual, .true.)
@@ -445,9 +445,9 @@
   ! CHECK:       %[[V_316:[0-9]+]] = fir.call @_FortranAMapException(%[[V_315]]) fastmath<contract> : (i32) -> i32
   ! CHECK:       %[[V_317:[0-9]+]] = fir.convert %[[V_312]] : (!fir.logical<4>) -> i1
   ! CHECK:       fir.if %[[V_317]] {
-  ! CHECK:         fir.call {{.*}}feenableexcept(%[[V_316]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfeenableexcept(%[[V_316]]) fastmath<contract> : (i32)
   ! CHECK:       } else {
-  ! CHECK:         fir.call {{.*}}fedisableexcept(%[[V_316]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfedisableexcept(%[[V_316]]) fastmath<contract> : (i32)
   ! CHECK:       }
   ! CHECK:     }
   call ieee_set_halting_mode(ieee_usual, [.true., .false., .true.])
@@ -479,9 +479,9 @@
   ! CHECK:       %[[V_313:[0-9]+]] = fir.convert %[[V_312]] : (i8) -> i32
   ! CHECK:       %[[V_314:[0-9]+]] = fir.call @_FortranAMapException(%[[V_313]]) fastmath<contract> : (i32) -> i32
   ! CHECK:       fir.if %true{{[_0-9]*}} {
-  ! CHECK:         fir.call {{.*}}feenableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfeenableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       } else {
-  ! CHECK:         fir.call {{.*}}fedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
+  ! CHECK:         fir.call @_FortranAfedisableexcept(%[[V_314]]) fastmath<contract> : (i32)
   ! CHECK:       }
   ! CHECK:     }
   call ieee_set_halting_mode(ieee_all, .true.)

@@ -295,11 +295,11 @@ end subroutine
 !CHECK-KIND10:               %[[VAL_37:.*]] = arith.constant 63 : i32
 !CHECK-KIND10:               %[[VAL_38:.*]] = fir.call @_FortranAMapException(%[[VAL_37]]) fastmath<contract> : (i32) -> i32
 !CHECK-KIND10:               %[[VAL_39:.*]] = fir.call {{.*}}fetestexcept(%[[VAL_38]]) fastmath<contract> : (i32) -> i32
-!CHECK-KIND10:               %[[VAL_40:.*]] = fir.call {{.*}}fedisableexcept(%[[VAL_38]]) fastmath<contract> : (i32) -> i32
+!CHECK-KIND10:               %[[VAL_40:.*]] = fir.call @_FortranAfedisableexcept(%[[VAL_38]]) fastmath<contract> : (i32) -> i32
 !CHECK-KIND10:               %[[VAL_41:.*]] = fir.call @_FortranANearest10(%[[VAL_13]], %[[VAL_16]]) fastmath<contract> : (f80, i1) -> f80
 !CHECK-KIND10:               %[[VAL_42:.*]] = fir.call {{.*}}feclearexcept(%[[VAL_38]]) fastmath<contract> : (i32) -> i32
 !CHECK-KIND10:                                fir.call {{.*}}feraiseexcept(%[[VAL_39]]) fastmath<contract> : (i32)
-!CHECK-KIND10:               %[[VAL_44:.*]] = fir.call {{.*}}feenableexcept(%[[VAL_40]]) fastmath<contract> : (i32) -> i32
+!CHECK-KIND10:               %[[VAL_44:.*]] = fir.call @_FortranAfeenableexcept(%[[VAL_40]]) fastmath<contract> : (i32) -> i32
 !CHECK-KIND10:               fir.result %[[VAL_41]] : f80
 !CHECK-KIND10:             }
 !CHECK-KIND10:             fir.result %[[VAL_32]] : f80

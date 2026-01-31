@@ -20,6 +20,7 @@
 
 #include "flang/Optimizer/Builder/LowLevelIntrinsics.h"
 #include "flang/Optimizer/Builder/FIRBuilder.h"
+#include "flang/Runtime/entry-names.h"
 
 mlir::func::FuncOp fir::factory::getRealloc(fir::FirOpBuilder &builder) {
   auto ptrTy = builder.getRefType(builder.getIntegerType(8));
@@ -74,16 +75,16 @@ fir::factory::getFedisableexcept(fir::FirOpBuilder &builder) {
   auto int32Ty = builder.getIntegerType(32);
   auto funcTy =
       mlir::FunctionType::get(builder.getContext(), {int32Ty}, {int32Ty});
-  return builder.createFunction(builder.getUnknownLoc(), "fedisableexcept",
-                                funcTy);
+  return builder.createFunction(builder.getUnknownLoc(),
+                                RTNAME_STRING(fedisableexcept), funcTy);
 }
 
 mlir::func::FuncOp fir::factory::getFeenableexcept(fir::FirOpBuilder &builder) {
   auto int32Ty = builder.getIntegerType(32);
   auto funcTy =
       mlir::FunctionType::get(builder.getContext(), {int32Ty}, {int32Ty});
-  return builder.createFunction(builder.getUnknownLoc(), "feenableexcept",
-                                funcTy);
+  return builder.createFunction(builder.getUnknownLoc(),
+                                RTNAME_STRING(feenableexcept), funcTy);
 }
 
 mlir::func::FuncOp fir::factory::getFegetexcept(fir::FirOpBuilder &builder) {

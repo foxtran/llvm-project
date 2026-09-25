@@ -5,6 +5,9 @@
 ; RUN: llvm-readelf -s %t0 | FileCheck %s --check-prefix=FULL
 ; RUN: ld.lld --lto=thin %t0.o -o %t0
 ; RUN: llvm-readelf -s %t0 | FileCheck %s --check-prefix=THIN
+; RUN: ld.lld --unified-lto=2 %t0.o -o %t2
+; Mode 2 emits the merged module, so the FILE symbol is ld-temp.o.
+; RUN: llvm-readelf -s %t2 | FileCheck %s --check-prefix=FULL
 ; RUN: ld.lld --lto=default %t0.o -o %t0
 ; RUN: llvm-readelf -s %t0 | FileCheck %s --check-prefix=THIN
 ; RUN: ld.lld --lto=default %t1.o -o %t1

@@ -639,7 +639,12 @@ def: Flag<["-"], "V">, Alias<v>, HelpText<"Alias for -v">;
 // LTO-related options.
 
 def lto: JJ<"lto=">, HelpText<"Set LTO backend">,
-                 MetaVarName<"[full,thin]">;
+                 MetaVarName<"[full,thin,default]">;
+def unified_lto: JJ<"unified-lto=">,
+  HelpText<"Unified LTO mode: 0=existing pipeline (default), 2=ThinLTO on merged optimized IR, 3=Full LTO on merged optimized IR; 1 reserved">,
+  MetaVarName<"mode">;
+def : FF<"unified-lto">, Alias<unified_lto>, AliasArgs<["0"]>,
+  HelpText<"Alias for --unified-lto=0">;
 def lto_aa_pipeline: JJ<"lto-aa-pipeline=">,
   HelpText<"AA pipeline to run during LTO. Used in conjunction with -lto-newpm-passes">;
 def lto_debug_pass_manager: FF<"lto-debug-pass-manager">,

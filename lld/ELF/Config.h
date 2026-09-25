@@ -139,8 +139,14 @@ enum class SeparateSegmentKind { None, Code, Loadable };
 // For -z *stack
 enum class GnuStackKind { None, Exec, NoExec };
 
-// For --lto=
-enum LtoKind : uint8_t {UnifiedThin, UnifiedRegular, Default};
+// For --lto= and --unified-lto=.
+enum LtoKind : uint8_t {
+  UnifiedThin,
+  UnifiedRegular,
+  Default,
+  TwoStageFull,
+  TwoStageThin
+};
 
 // For -z gcs=
 enum class GcsPolicy { Implicit, Never, Always };
@@ -558,8 +564,14 @@ struct Config {
   // Whether to emit the Android-specific legacy memtag note.
   bool memtagAndroidNote;
 
-  // When using a unified pre-link LTO pipeline, specify the backend LTO mode.
+  // Select the default, unified or two-stage LTO pipeline.
   LtoKind ltoKind = LtoKind::Default;
+
+  // Unified LTO mode: 0 is the current behavior; 2 and 3 optimize inputs
+  // through their original pipelines, merge the optimized IR, then run
+  // ThinLTO or full LTO on the combined module. Mode 1 is reserved for future
+  // implementations.
+  uint8_t unifiedLTO = 0;
 
   unsigned threadCount;
 

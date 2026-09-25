@@ -318,8 +318,10 @@ using ThinBackendFunction = std::function<std::unique_ptr<ThinBackendProc>(
 /// functions to instantiate a ThinBackend. Parallelism defines the thread pool
 /// strategy to be used for processing.
 struct ThinBackend {
-  ThinBackend(ThinBackendFunction Func, ThreadPoolStrategy Parallelism)
-      : Func(std::move(Func)), Parallelism(std::move(Parallelism)) {}
+  ThinBackend(ThinBackendFunction Func, ThreadPoolStrategy Parallelism,
+              bool SupportsModuleHooks = false)
+      : Func(std::move(Func)), Parallelism(std::move(Parallelism)),
+        SupportsModuleHooks(SupportsModuleHooks) {}
   ThinBackend() = default;
 
   std::unique_ptr<ThinBackendProc> operator()(
@@ -333,10 +335,13 @@ struct ThinBackend {
   }
   ThreadPoolStrategy getParallelism() const { return Parallelism; }
   bool isValid() const { return static_cast<bool>(Func); }
+  /// Whether every backend runs in-process and honors Config's module hooks.
+  bool supportsModuleHooks() const { return SupportsModuleHooks; }
 
 private:
   ThinBackendFunction Func = nullptr;
   ThreadPoolStrategy Parallelism;
+  bool SupportsModuleHooks = false;
 };
 
 /// This ThinBackend runs the individual backend jobs in-process.
@@ -392,7 +397,7 @@ class LLVM_ABI LTO {
   friend InputFile;
 
 public:
-  /// Unified LTO modes
+  /// LTO pipeline selection.
   enum LTOKind {
     /// Any LTO mode without Unified LTO. The default mode.
     LTOK_Default,
@@ -402,6 +407,18 @@ public:
 
     /// ThinLTO, with Unified LTO enabled.
     LTOK_UnifiedThin,
+
+    /// Two-stage IR-based Full LTO: optimize ThinLTO and regular-LTO
+    /// inputs to IR, merge the optimized IR, then run regular LTO optimization
+    /// and code generation with one final output task. Currently requires
+    /// in-process backends and does not support the native object cache.
+    LTOK_TwoStageFull,
+
+    /// Two-stage IR-based ThinLTO: optimize inputs with their original
+    /// pipelines, merge their optimized IR into one module, rebuild its
+    /// summary, then run a full ThinLTO link and backend. Same restrictions as
+    /// LTOK_TwoStageFull. Unlike LTOK_UnifiedThin, accepts ordinary mixed IR.
+    LTOK_TwoStageThin,
   };
 
   /// Create an LTO object. A default constructed LTO object has a reasonable
@@ -635,15 +652,21 @@ private:
              ArrayRef<SymbolResolution> Res);
 
   Error runRegularLTO(AddStreamFn AddStream);
+  /// Full-LTO IR entry shared by regular/unified LTO and the final IR link.
+  /// ResolvedIR has already undergone symbol resolution and internalization.
+  Error runRegularLTO(Module &M, ModuleSummaryIndex &Index,
+                      AddStreamFn AddStream, bool ResolvedIR, bool EmitModule);
   Error runThinLTO(AddStreamFn AddStream, FileCache Cache,
                    const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols);
+  Error runTwoStageLTO(AddStreamFn AddStream,
+                       const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols);
 
   Error checkPartiallySplit();
 
   mutable bool CalledGetMaxTasks = false;
 
 protected:
-  // LTO mode when using Unified LTO.
+  // LTO pipeline selection.
   LTOKind LTOMode;
 
 private:

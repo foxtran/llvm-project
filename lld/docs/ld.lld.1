@@ -697,6 +697,22 @@ Print the names of the input files.
 .It Fl -trace-symbol Ns = Ns Ar symbol , Fl y Ar symbol
 Trace references to
 .Ar symbol .
+.It Fl -unified-lto Ns = Ns Ar mode
+Select a two-stage LTO pipeline.
+Mode 0 (the default) retains the existing LTO behavior.
+Modes 2 and 3 first optimize Full-LTO and ThinLTO inputs with their original
+pipelines, without generating native objects, then merge the optimized IR into
+one module.
+Mode 2 runs a fresh complete ThinLTO link and backend on that module;
+mode 3 runs Full-LTO optimization and code generation.
+Both modes emit one final LTO object and accept ordinary mixed LTO bitcode,
+without requiring a unified pre-link pipeline.
+Mode 1 is reserved and produces an error.
+These modes currently require in-process backends and do not support native
+object caching, partial compilation, or cross-DSO CFI.
+.It Fl -unified-lto
+Alias for
+.Fl -unified-lto=0 .
 .It Fl -undefined Ns = Ns Ar symbol , Fl u Ar symbol
 If
 .Ar symbol

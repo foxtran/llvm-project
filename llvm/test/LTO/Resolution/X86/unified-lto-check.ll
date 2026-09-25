@@ -35,6 +35,8 @@
 ; RUN: FileCheck --allow-empty %s --check-prefix NOUNIFIEDERR --check-prefix FULL
 ; RUN: llvm-lto2 run --unified-lto=thin --debug-only=lto -o %t3 %t1 %t2 2>&1 | \
 ; RUN: FileCheck --allow-empty %s --check-prefix NOUNIFIEDERR --check-prefix THIN
+; RUN: llvm-lto2 run --unified-lto=2 --debug-only=lto -o %t3 %t1 %t2 2>&1 | \
+; RUN: FileCheck --allow-empty %s --check-prefix NOUNIFIEDERR --check-prefix THIN
 ; RUN: llvm-lto2 run --debug-only=lto -o %t3 %t1 %t2 2>&1 | \
 ; RUN: FileCheck --allow-empty %s --check-prefix THIN
 
@@ -44,9 +46,10 @@
 ; RUN: not llvm-lto2 run --unified-lto="foo" -o %t3 %t1 %t2 2>&1 | \
 ; RUN: FileCheck %s --check-prefix INVALIDMODE
 ; RUN: not llvm-lto2 run --unified-lto=1 -o %t3 %t1 %t2 2>&1 | \
-; RUN: FileCheck %s --check-prefix INVALIDMODE
+; RUN: FileCheck %s --check-prefix RESERVEDMODE
 
-; INVALIDMODE: for the --unified-lto option: Cannot find option named
+; INVALIDMODE: invalid unified LTO mode: foo
+; RESERVEDMODE: unified LTO mode 1 is reserved
 
 
 ; UNIFIEDERR: unified LTO compilation must use compatible bitcode modules

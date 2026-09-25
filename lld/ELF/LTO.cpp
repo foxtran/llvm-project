@@ -198,10 +198,12 @@ BitcodeCompiler::BitcodeCompiler(Ctx &ctx) : ctx(ctx) {
         ctx.arg.thinLTOEmitImportsFiles);
   }
 
-  constexpr llvm::lto::LTO::LTOKind ltoModes[3] = {
+  constexpr llvm::lto::LTO::LTOKind ltoModes[] = {
       llvm::lto::LTO::LTOKind::LTOK_UnifiedThin,
       llvm::lto::LTO::LTOKind::LTOK_UnifiedRegular,
-      llvm::lto::LTO::LTOKind::LTOK_Default};
+      llvm::lto::LTO::LTOKind::LTOK_Default,
+      llvm::lto::LTO::LTOKind::LTOK_TwoStageFull,
+      llvm::lto::LTO::LTOKind::LTOK_TwoStageThin};
 
   if (ctx.arg.dtltoDistributor.empty())
     ltoObj = std::make_unique<lto::LTO>(createConfig(ctx), backend,

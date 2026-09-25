@@ -272,6 +272,10 @@ struct Config {
       const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols)>;
   CombinedIndexHookFn CombinedIndexHook;
 
+  /// Fresh combined index for the second ThinLTO stage in unified mode 2.
+  /// Kept separate so save-temps does not overwrite the first-stage index.
+  CombinedIndexHookFn SecondStageCombinedIndexHook;
+
   /// This is a convenience function that configures this Config object to write
   /// temporary files named after the given OutputFileName for each of the LTO
   /// phases to disk. A client can use this function to implement -save-temps.

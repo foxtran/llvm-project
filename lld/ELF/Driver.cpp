@@ -1879,6 +1879,17 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
     ctx.arg.mllvmOpts.emplace_back(arg->getValue());
   }
 
+  ctx.arg.unifiedLTO = 0;
+  if (auto *arg = args.getLastArg(OPT_unified_lto)) {
+    unsigned mode = 0;
+    if (!llvm::to_integer(arg->getValue(), mode, 10) || mode > 3)
+      ErrAlways(ctx) << "invalid unified LTO mode: " << arg->getValue();
+    else if (mode == 1)
+      ErrAlways(ctx) << "unified LTO mode 1 is reserved";
+    else
+      ctx.arg.unifiedLTO = mode;
+  }
+
   ctx.arg.ltoKind = LtoKind::Default;
   if (auto *arg = args.getLastArg(OPT_lto)) {
     StringRef s = arg->getValue();
@@ -1891,6 +1902,13 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
     else
       ErrAlways(ctx) << "unknown LTO mode: " << s;
   }
+  // Mode 0 leaves the existing backend selection alone. Modes 2 and 3
+  // preserve each input's original pipeline, merge their optimized IR, and
+  // run a ThinLTO or full LTO stage on the combined module.
+  if (ctx.arg.unifiedLTO == 2)
+    ctx.arg.ltoKind = LtoKind::TwoStageThin;
+  else if (ctx.arg.unifiedLTO == 3)
+    ctx.arg.ltoKind = LtoKind::TwoStageFull;
 
   // --threads= takes a positive integer and provides the default value for
   // --thinlto-jobs=. If unspecified, cap the number of threads since

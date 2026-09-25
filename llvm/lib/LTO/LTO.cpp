@@ -17,7 +17,9 @@
 #include "llvm/ADT/StableHashing.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Analysis/ModuleSummaryAnalysis.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/StackSafetyAnalysis.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
@@ -36,6 +38,7 @@
 #include "llvm/IR/RuntimeLibcalls.h"
 #include "llvm/LTO/LTOBackend.h"
 #include "llvm/Linker/IRMover.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Object/IRObjectFile.h"
 #include "llvm/Support/Caching.h"
@@ -59,9 +62,11 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/MemProfContextDisambiguation.h"
 #include "llvm/Transforms/IPO/WholeProgramDevirt.h"
+#include "llvm/Transforms/Utils/AssignGUID.h"
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
 #include "llvm/Transforms/Utils/SplitModule.h"
 
+#include <mutex>
 #include <optional>
 #include <set>
 
@@ -102,6 +107,14 @@ void LTO::emitRemark(OptimizationRemark &Remark) {
   const Function &F = Remark.getFunction();
   OptimizationRemarkEmitter ORE(const_cast<Function *>(&F));
   ORE.emit(Remark);
+}
+
+// Once all the IR is present, the split-unit cfi.functions description is
+// redundant. Use the actual definitions, as unified full LTO does, rather than
+// asking LowerTypeTests to synthesize a second definition for each function.
+static void prepareUnifiedRegularModule(Module &M) {
+  if (NamedMDNode *MD = M.getNamedMetadata("cfi.functions"))
+    M.eraseNamedMetadata(MD);
 }
 
 static cl::opt<bool>
@@ -890,7 +903,7 @@ LTO::addModule(InputFile &Input, ArrayRef<SymbolResolution> InputRes,
   if (LTOInfo->UnifiedLTO && LTOMode == LTOK_Default)
     LTOMode = LTOK_UnifiedThin;
 
-  bool IsThinLTO = LTOInfo->IsThinLTO && (LTOMode != LTOK_UnifiedRegular);
+  bool IsThinLTO = LTOInfo->IsThinLTO && LTOMode != LTOK_UnifiedRegular;
   // If any of the modules inside of a input bitcode file was compiled with
   // ThinLTO, we assume that the whole input file also was compiled with
   // ThinLTO.
@@ -980,8 +993,7 @@ LTO::addRegularLTO(InputFile &Input, ArrayRef<SymbolResolution> InputRes,
     // cfi.functions metadata is intended to be used with ThinLTO and may
     // trigger invalid IR transformations if they are present when doing regular
     // LTO, so delete it.
-    if (NamedMDNode *CfiFunctionsMD = M.getNamedMetadata("cfi.functions"))
-      M.eraseNamedMetadata(CfiFunctionsMD);
+    prepareUnifiedRegularModule(M);
   } else if (NamedMDNode *AliasesMD = M.getNamedMetadata("aliases")) {
     // Delete aliases entries for non-prevailing symbols on the ThinLTO side of
     // this input file.
@@ -1271,7 +1283,15 @@ unsigned LTO::getMaxTasks() const {
   CalledGetMaxTasks = true;
   auto ModuleCount = ThinLTO.ModulesToCompile ? ThinLTO.ModulesToCompile->size()
                                               : ThinLTO.ModuleMap.size();
-  return RegularLTO.ParallelCodeGenParallelismLevel + ModuleCount;
+  unsigned Tasks = RegularLTO.ParallelCodeGenParallelismLevel + ModuleCount;
+  // Reserve distinct task IDs for the final optimization/codegen stage.
+  if (LTOMode == LTOK_TwoStageFull)
+    ++Tasks;
+  else if (LTOMode == LTOK_TwoStageThin)
+    // The second link reserves task 0 for regular LTO and uses task 1 for
+    // the single merged ThinLTO module.
+    Tasks += 2;
+  return Tasks;
 }
 
 // If only some of the modules were split, we cannot correctly handle
@@ -1370,16 +1390,306 @@ Error LTO::run(AddStreamFn AddStream, FileCache Cache) {
   if (SupportsHotColdNew)
     ThinLTO.CombinedIndex.setWithSupportsHotColdNew();
 
-  Error Result = runRegularLTO(AddStream);
-  if (!Result)
-    // This will reset the GlobalResolutions optional once done with it to
-    // reduce peak memory before importing.
-    Result = runThinLTO(AddStream, Cache, GUIDPreservedSymbols);
+  auto Run = [&]() -> Error {
+    if (LTOMode == LTOK_TwoStageFull || LTOMode == LTOK_TwoStageThin) {
+      if (Cache.isValid())
+        return createStringError(
+            inconvertibleErrorCode(),
+            LTOMode == LTOK_TwoStageFull
+                ? "two-stage full LTO does not yet support the native "
+                  "object cache"
+                : "two-stage ThinLTO does not yet support the native "
+                  "object cache");
+      return runTwoStageLTO(AddStream, GUIDPreservedSymbols);
+    }
+    if (Error Err = runRegularLTO(AddStream))
+      return Err;
+    return runThinLTO(AddStream, Cache, GUIDPreservedSymbols);
+  };
+  Error Result = Run();
 
   if (StatsFile)
     PrintStatisticsJSON(StatsFile->os());
 
   return Result;
+}
+
+Error LTO::runTwoStageLTO(
+    AddStreamFn AddStream,
+    const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
+  // This prototype requires every backend to run locally and invoke our IR
+  // hooks. Native cache hits, index-only and remote backends cannot do that.
+  if (!ThinLTO.Backend.supportsModuleHooks() || Conf.CodeGenOnly ||
+      !Conf.ThinLTOModulesToCompile.empty() || CodeGenDataThinLTOTwoRounds)
+    return createStringError(
+        inconvertibleErrorCode(),
+        LTOMode == LTOK_TwoStageFull
+            ? "two-stage full LTO requires an in-process backend and complete "
+              "first-stage optimization"
+            : "two-stage ThinLTO requires an in-process backend and complete "
+              "first-stage optimization");
+
+  const unsigned ThinTaskOffset = RegularLTO.ParallelCodeGenParallelismLevel;
+  const unsigned FinalTaskOffset = ThinTaskOffset + ThinLTO.ModuleMap.size();
+  struct SavedResolution {
+    bool Prevailing;
+    bool VisibleToRegularObj;
+    bool ExportDynamic;
+  };
+  StringMap<SavedResolution> SavedResolutions;
+  if (LTOMode == LTOK_TwoStageThin) {
+    // Remember external visibility and prevailing decisions before runThinLTO
+    // releases the resolution state. There is no second-stage module ownership
+    // to reconstruct: all surviving definitions will be in the merged module.
+    for (const auto &R : *GlobalResolutions) {
+      SavedResolution SR{R.second.Prevailing, R.second.VisibleOutsideSummary,
+                         R.second.ExportDynamic};
+      SavedResolutions.try_emplace(R.first, SR);
+    }
+  }
+  const bool ExpectRegular =
+      !RegularLTO.EmptyCombinedModule || Conf.AlwaysEmitRegularLTOObj;
+  // Index by task, not completion order, so the final merge is deterministic.
+  std::vector<std::optional<std::string>> Modules(FinalTaskOffset);
+  std::mutex ModulesMutex;
+  std::string CaptureError;
+  auto OldPreOptHook = Conf.PreOptModuleHook;
+  auto OldPostPromoteHook = Conf.PostPromoteModuleHook;
+  auto OldPostInternalizeHook = Conf.PostInternalizeModuleHook;
+  auto OldPostImportHook = Conf.PostImportModuleHook;
+  auto OldPostOptHook = Conf.PostOptModuleHook;
+  auto OldPreCodeGenHook = Conf.PreCodeGenModuleHook;
+  auto OldCombinedIndexHook = Conf.CombinedIndexHook;
+  llvm::scope_exit RestoreHooks([&] {
+    Conf.PreOptModuleHook = std::move(OldPreOptHook);
+    Conf.PostPromoteModuleHook = std::move(OldPostPromoteHook);
+    Conf.PostInternalizeModuleHook = std::move(OldPostInternalizeHook);
+    Conf.PostImportModuleHook = std::move(OldPostImportHook);
+    Conf.PostOptModuleHook = std::move(OldPostOptHook);
+    Conf.PreCodeGenModuleHook = std::move(OldPreCodeGenHook);
+    Conf.CombinedIndexHook = std::move(OldCombinedIndexHook);
+  });
+
+  Conf.PreOptModuleHook = [&](unsigned Task, const Module &M) {
+    // CrossDSOCFI replaces __cfi_check's body each time it runs. Repeating it
+    // after the original type tests have been lowered can change the checks.
+    // Ordinary (non-cross-DSO) CFI does not have this replay problem.
+    if (M.getModuleFlag("Cross-DSO CFI")) {
+      std::lock_guard<std::mutex> Lock(ModulesMutex);
+      CaptureError = LTOMode == LTOK_TwoStageFull
+                         ? "two-stage full LTO cannot yet replay cross-DSO CFI"
+                         : "two-stage ThinLTO cannot yet replay cross-DSO CFI";
+      return false;
+    }
+    return !OldPreOptHook || OldPreOptHook(Task, M);
+  };
+  Conf.PostOptModuleHook = [&](unsigned Task, const Module &M) {
+    if (OldPostOptHook && !OldPostOptHook(Task, M))
+      return false;
+    std::string Buffer;
+    raw_string_ostream OS(Buffer);
+    WriteBitcodeToFile(M, OS);
+    std::lock_guard<std::mutex> Lock(ModulesMutex);
+    if (Task >= Modules.size() || Modules[Task])
+      CaptureError = "unexpected or duplicate first-stage LTO task";
+    else
+      Modules[Task] = std::move(Buffer);
+    // The hook's documented false result stops BOTH backends before codegen.
+    return false;
+  };
+  auto NoNativeOutput =
+      [](unsigned,
+         const Twine &) -> Expected<std::unique_ptr<CachedFileStream>> {
+    return createStringError(inconvertibleErrorCode(),
+                             "unexpected first-stage native output");
+  };
+
+  // Run the normal mixed pipeline, including full-LTO optimization first and
+  // ThinLTO importing/promotion/internalization/optimization afterwards.
+  if (Error Err = runRegularLTO(NoNativeOutput))
+    return Err;
+  if (!CaptureError.empty())
+    return createStringError(inconvertibleErrorCode(), CaptureError);
+  // Native caching was rejected by run(): we need every optimized IR module.
+  if (Error Err = runThinLTO(NoNativeOutput, {}, GUIDPreservedSymbols))
+    return Err;
+  if (!CaptureError.empty())
+    return createStringError(inconvertibleErrorCode(), CaptureError);
+  if ((ExpectRegular && !Modules[0]) ||
+      any_of(drop_begin(Modules, ThinTaskOffset),
+             [](const auto &M) { return !M.has_value(); }))
+    return createStringError(inconvertibleErrorCode(),
+                             "incomplete first-stage IR (a hook stopped LTO)");
+
+  if (none_of(Modules, [](const auto &M) { return M.has_value(); }))
+    return Error::success();
+
+  // Do not reuse the first-stage IRMover: optimization has invalidated its
+  // type/value maps. Parse into a new context and let the ordinary IR linker
+  // handle locals, COMDATs and surviving available_externally definitions.
+  LTOLLVMContext Ctx(Conf);
+  Module Merged("ld-temp.o", Ctx);
+  Linker IRLinker(Merged);
+  for (auto &Buffer : Modules) {
+    if (!Buffer)
+      continue;
+    auto MOrErr = parseBitcodeFile(MemoryBufferRef(*Buffer, "stage1"), Ctx);
+    if (!MOrErr)
+      return MOrErr.takeError();
+    Module &M = **MOrErr;
+    if ((!Merged.getTargetTriple().empty() && !M.getTargetTriple().empty() &&
+         !Merged.getTargetTriple().isCompatibleWith(M.getTargetTriple())) ||
+        (!Merged.getDataLayout().isDefault() &&
+         !M.getDataLayout().isDefault() &&
+         Merged.getDataLayout() != M.getDataLayout()))
+      return createStringError(inconvertibleErrorCode(),
+                               "incompatible first-stage targets or layouts");
+    // These dispatch flags describe the pre-link inputs, not the already
+    // optimized IR. Stage one has consumed the splitting policy. Both final
+    // pipelines start from the same merged IR, without a unified pre-link.
+    M.setModuleFlag(Module::Error, "ThinLTO", uint32_t(0));
+    M.setModuleFlag(Module::Error, "UnifiedLTO", uint32_t(0));
+    M.setModuleFlag(Module::Error, "EnableSplitLTOUnit", uint32_t(0));
+    prepareUnifiedRegularModule(M);
+    if (IRLinker.linkInModule(std::move(*MOrErr)))
+      return createStringError(inconvertibleErrorCode(),
+                               "failed to merge first-stage optimized IR");
+  }
+
+  if (LTOMode == LTOK_TwoStageThin) {
+    Merged.setModuleIdentifier("ld-temp.stage2.merged");
+    Merged.setModuleFlag(Module::Error, "ThinLTO", uint32_t(1));
+
+    // This is a new ThinLTO unit. First-stage GUIDs describe the old names,
+    // linkages and source modules, and may collide for distinct locals after
+    // linking. Reassign them using the now-unique merged names; also assign
+    // GUIDs to new definitions introduced by first-stage optimization.
+    for (GlobalObject &GO : Merged.global_objects())
+      GO.eraseMetadata(LLVMContext::MD_guid);
+    AssignGUIDPass::runOnModule(Merged);
+    ProfileSummaryInfo PSI(Merged);
+    ModuleSummaryIndex Index = buildModuleSummaryIndex(Merged, nullptr, &PSI);
+    std::string BC;
+    raw_string_ostream OS(BC);
+    WriteBitcodeToFile(Merged, OS, /*ShouldPreserveUseListOrder=*/false,
+                       &Index, /*GenerateHash=*/true);
+    // InputFile holds non-owning references into this buffer. Keep it alive
+    // until the second link and its backend have finished.
+    auto Buffer = MemoryBuffer::getMemBufferCopy(
+        BC, Merged.getModuleIdentifier());
+    auto InputOrErr = InputFile::create(Buffer->getMemBufferRef());
+    if (!InputOrErr)
+      return InputOrErr.takeError();
+
+    std::vector<SymbolResolution> Resolutions;
+    for (const auto &Sym : (*InputOrErr)->symbols()) {
+      SymbolResolution R;
+      auto Old = SavedResolutions.find(Sym.getName());
+      // Available-externally bodies are undefined in the symbol table and
+      // must not become prevailing definitions in this new link.
+      R.Prevailing = !Sym.isUndefined() &&
+                     (Old == SavedResolutions.end() || Old->second.Prevailing);
+      // Preserve new externally linked symbols conservatively, including
+      // generated CFI thunks and symbols referenced by opaque assembly.
+      R.VisibleToRegularObj =
+          Old == SavedResolutions.end() || Old->second.VisibleToRegularObj;
+      R.ExportDynamic =
+          Old != SavedResolutions.end() && Old->second.ExportDynamic;
+      if (const GlobalValue *GV = Merged.getNamedValue(Sym.getIRName()))
+        R.FinalDefinitionInLinkageUnit = R.Prevailing && GV->isDSOLocal();
+      Resolutions.push_back(R);
+    }
+
+    // Run the FULL ThinLTO driver, including the thin link, promotion,
+    // internalization and import phase, on one synthetic module. Do not use
+    // thinlto-assume-merged or invoke just the optimization pipeline.
+    auto OffsetHook = [&](Config::ModuleHookFn Hook) -> Config::ModuleHookFn {
+      return [Hook, FinalTaskOffset](unsigned Task, const Module &M) {
+        // The second link's regular-LTO placeholder has no inputs or output.
+        return Task == 0 || !Hook || Hook(FinalTaskOffset + Task, M);
+      };
+    };
+    Config SecondConf = std::move(Conf);
+    SecondConf.ResolutionFile.reset();
+    SecondConf.StatsFile.clear();
+    SecondConf.SampleProfile.clear();
+    SecondConf.CSIRProfile.clear();
+    SecondConf.RunCSIRInstr = false;
+    SecondConf.AlwaysEmitRegularLTOObj = false;
+    SecondConf.KeepSymbolNameCopies = true;
+    if (!SecondConf.RemarksFilename.empty())
+      SecondConf.RemarksFilename += ".stage2";
+    SecondConf.PreOptModuleHook = OffsetHook(OldPreOptHook);
+    SecondConf.PostPromoteModuleHook = OffsetHook(OldPostPromoteHook);
+    SecondConf.PostInternalizeModuleHook = OffsetHook(OldPostInternalizeHook);
+    SecondConf.PostImportModuleHook = OffsetHook(OldPostImportHook);
+    SecondConf.PostOptModuleHook = OffsetHook(OldPostOptHook);
+    SecondConf.PreCodeGenModuleHook = OffsetHook(OldPreCodeGenHook);
+    SecondConf.CombinedIndexHook = SecondConf.SecondStageCombinedIndexHook;
+    LTO SecondLTO(std::move(SecondConf),
+                  createInProcessThinBackend(ThinLTO.Backend.getParallelism()),
+                  /*ParallelCodeGenParallelismLevel=*/1, LTOK_Default);
+    SecondLTO.setBitcodeLibFuncs(BitcodeLibFuncs);
+    llvm::scope_exit RestoreConfig([&] { Conf = std::move(SecondLTO.Conf); });
+    if (Error Err = SecondLTO.add(std::move(*InputOrErr), Resolutions))
+      return Err;
+    auto SecondAddStream = [&](unsigned Task, const Twine &Name) {
+      return AddStream(FinalTaskOffset + Task, Name);
+    };
+    SecondLTO.getMaxTasks();
+    return SecondLTO.run(SecondAddStream);
+  }
+
+  // Keep first-stage artifacts intact and assign distinct task IDs to stage 2.
+  Conf.PreOptModuleHook = [&](unsigned Task, const Module &M) {
+    return !OldPreOptHook || OldPreOptHook(FinalTaskOffset + Task, M);
+  };
+  Conf.PostOptModuleHook = [&](unsigned Task, const Module &M) {
+    return !OldPostOptHook || OldPostOptHook(FinalTaskOffset + Task, M);
+  };
+  Conf.PostInternalizeModuleHook = [&](unsigned Task, const Module &M) {
+    return !OldPostInternalizeHook ||
+           OldPostInternalizeHook(FinalTaskOffset + Task, M);
+  };
+  Conf.PreCodeGenModuleHook = [&](unsigned Task, const Module &M) {
+    return !OldPreCodeGenHook || OldPreCodeGenHook(FinalTaskOffset + Task, M);
+  };
+  // The first-stage pipelines already consumed profiles and inserted any
+  // requested instrumentation. Use the resulting !prof/!memprof IR, not the
+  // original profiles (whose CFG hashes/contexts no longer match), in stage 2.
+  auto SampleProfile = std::move(Conf.SampleProfile);
+  auto CSIRProfile = std::move(Conf.CSIRProfile);
+  bool RunCSIRInstr = Conf.RunCSIRInstr;
+  Conf.SampleProfile.clear();
+  Conf.CSIRProfile.clear();
+  Conf.RunCSIRInstr = false;
+  llvm::scope_exit RestoreProfiles([&] {
+    Conf.SampleProfile = std::move(SampleProfile);
+    Conf.CSIRProfile = std::move(CSIRProfile);
+    Conf.RunCSIRInstr = RunCSIRInstr;
+  });
+
+  // A fresh export index, as in full LTO without ThinLTO consumers. A
+  // per-module analysis index would retain pointers to globals that the full
+  // optimizer may delete; neither it nor the old import index belongs here.
+  ModuleSummaryIndex FinalIndex(/*HaveGVs=*/false);
+  if (ThinLTO.CombinedIndex.withSupportsHotColdNew())
+    FinalIndex.setWithSupportsHotColdNew();
+  auto FinalStream = [&](unsigned Task, const Twine &Name) {
+    return AddStream(FinalTaskOffset + Task, Name);
+  };
+  // This is a FULL optimization pass, not codegen-only: it sees both families'
+  // optimized bodies for the first time and can inline across the boundary.
+  auto Remarks = lto::setupLLVMOptimizationRemarks(
+      Ctx, Conf.RemarksFilename.empty() ? "" : Conf.RemarksFilename + ".stage2",
+      Conf.RemarksPasses, Conf.RemarksFormat, Conf.RemarksWithHotness,
+      Conf.RemarksHotnessThreshold);
+  if (!Remarks)
+    return Remarks.takeError();
+  if (Error Err = runRegularLTO(Merged, FinalIndex, FinalStream,
+                                /*ResolvedIR=*/true, /*EmitModule=*/true))
+    return Err;
+  return finalizeOptimizationRemarks(std::move(*Remarks));
 }
 
 Error LTO::runRegularLTO(AddStreamFn AddStream) {
@@ -1431,37 +1741,48 @@ Error LTO::runRegularLTO(AddStreamFn AddStream) {
     }
   }
 
-  bool WholeProgramVisibilityEnabledInLTO =
-      Conf.HasWholeProgramVisibility &&
-      // If validation is enabled, upgrade visibility only when all vtables
-      // have typeinfos.
-      (!Conf.ValidateAllVtablesHaveTypeInfos || Conf.AllVtablesHaveTypeInfos);
+  if (Error Err = runRegularLTO(
+          *RegularLTO.CombinedModule, ThinLTO.CombinedIndex, AddStream,
+          /*ResolvedIR=*/false,
+          !RegularLTO.EmptyCombinedModule || Conf.AlwaysEmitRegularLTOObj))
+    return Err;
+  return Error::success();
+}
 
-  // This returns true when the name is local or not defined. Locals are
-  // expected to be handled separately.
-  auto IsVisibleToRegularObj = [&](StringRef name) {
-    auto It = GlobalResolutions->find(name);
-    return (It == GlobalResolutions->end() ||
-            It->second.VisibleOutsideSummary || !It->second.Prevailing);
-  };
+Error LTO::runRegularLTO(Module &M, ModuleSummaryIndex &Index,
+                         AddStreamFn AddStream, bool ResolvedIR,
+                         bool EmitModule) {
+  // An IR link has already applied the input symbol resolutions, type-test
+  // exports and visibility decisions. Do not replay those with stale names
+  // or partition numbers, or accidentally internalize a newly renamed local.
+  if (!ResolvedIR) {
+    bool WholeProgramVisibilityEnabledInLTO =
+        Conf.HasWholeProgramVisibility &&
+        // If validation is enabled, upgrade visibility only when all vtables
+        // have typeinfos.
+        (!Conf.ValidateAllVtablesHaveTypeInfos || Conf.AllVtablesHaveTypeInfos);
 
-  // If allowed, upgrade public vcall visibility metadata to linkage unit
-  // visibility before whole program devirtualization in the optimizer.
-  updateVCallVisibilityInModule(
-      *RegularLTO.CombinedModule, WholeProgramVisibilityEnabledInLTO,
-      DynamicExportSymbols, Conf.ValidateAllVtablesHaveTypeInfos,
-      IsVisibleToRegularObj);
-  updatePublicTypeTestCalls(*RegularLTO.CombinedModule,
-                            WholeProgramVisibilityEnabledInLTO);
+    // This returns true when the name is local or not defined. Locals are
+    // expected to be handled separately.
+    auto IsVisibleToRegularObj = [&](StringRef Name) {
+      auto It = GlobalResolutions->find(Name);
+      return It == GlobalResolutions->end() ||
+             It->second.VisibleOutsideSummary || !It->second.Prevailing;
+    };
 
-  if (Conf.PreOptModuleHook &&
-      !Conf.PreOptModuleHook(0, *RegularLTO.CombinedModule))
+    // If allowed, upgrade public vcall visibility before devirtualization.
+    updateVCallVisibilityInModule(
+        M, WholeProgramVisibilityEnabledInLTO, DynamicExportSymbols,
+        Conf.ValidateAllVtablesHaveTypeInfos, IsVisibleToRegularObj);
+    updatePublicTypeTestCalls(M, WholeProgramVisibilityEnabledInLTO);
+  }
+
+  if (Conf.PreOptModuleHook && !Conf.PreOptModuleHook(0, M))
     return Error::success();
 
-  if (!Conf.CodeGenOnly) {
+  if (!Conf.CodeGenOnly && !ResolvedIR) {
     for (const auto &R : *GlobalResolutions) {
-      GlobalValue *GV =
-          RegularLTO.CombinedModule->getNamedValue(R.second.IRName);
+      GlobalValue *GV = M.getNamedValue(R.second.IRName);
       if (!R.second.isPrevailingIRSymbol())
         continue;
       if (R.second.Partition != 0 &&
@@ -1482,7 +1803,7 @@ Error LTO::runRegularLTO(AddStreamFn AddStream) {
       // one of the created modules. Normally, only the ThinLTO backend would
       // compile this module, but Unified Regular LTO processes both
       // modules created by the splitting process as regular LTO modules.
-      if ((LTOMode == LTOKind::LTOK_UnifiedRegular) &&
+      if (LTOMode == LTOK_UnifiedRegular &&
           ((GV->getDLLStorageClass() != GlobalValue::DefaultStorageClass) ||
            GV->hasAvailableExternallyLinkage() || GV->hasAppendingLinkage()))
         continue;
@@ -1492,19 +1813,15 @@ Error LTO::runRegularLTO(AddStreamFn AddStream) {
       if (EnableLTOInternalization && R.second.Partition == 0)
         GV->setLinkage(GlobalValue::InternalLinkage);
     }
-
-    if (Conf.PostInternalizeModuleHook &&
-        !Conf.PostInternalizeModuleHook(0, *RegularLTO.CombinedModule))
-      return Error::success();
   }
+  if (!Conf.CodeGenOnly && Conf.PostInternalizeModuleHook &&
+      !Conf.PostInternalizeModuleHook(0, M))
+    return Error::success();
 
-  if (!RegularLTO.EmptyCombinedModule || Conf.AlwaysEmitRegularLTOObj) {
-    if (Error Err = backend(
-            Conf, AddStream, RegularLTO.ParallelCodeGenParallelismLevel,
-            *RegularLTO.CombinedModule, ThinLTO.CombinedIndex, BitcodeLibFuncs))
-      return Err;
-  }
-
+  if (EmitModule)
+    return backend(Conf, AddStream,
+                   ResolvedIR ? 1 : RegularLTO.ParallelCodeGenParallelismLevel,
+                   M, Index, BitcodeLibFuncs);
   return Error::success();
 }
 
@@ -1910,7 +2227,7 @@ ThinBackend lto::createInProcessThinBackend(ThreadPoolStrategy Parallelism,
             AddStream, Cache, OnWrite, ShouldEmitIndexFiles,
             ShouldEmitImportsFiles, BitcodeLibFuncs);
       };
-  return ThinBackend(Func, Parallelism);
+  return ThinBackend(Func, Parallelism, /*SupportsModuleHooks=*/true);
 }
 
 StringLiteral lto::getThinLTODefaultCPU(const Triple &TheTriple) {

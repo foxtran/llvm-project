@@ -207,15 +207,13 @@ static cl::list<std::string>
     PassPlugins("load-pass-plugin",
                 cl::desc("Load passes from plugin library"));
 
-static cl::opt<LTO::LTOKind> UnifiedLTOMode(
-    "unified-lto", cl::desc("Set LTO mode with the following options:"),
-    cl::values(clEnumValN(LTO::LTOK_UnifiedThin, "thin",
-                          "ThinLTO with Unified LTO enabled"),
-               clEnumValN(LTO::LTOK_UnifiedRegular, "full",
-                          "Regular LTO with Unified LTO enabled"),
-               clEnumValN(LTO::LTOK_Default, "default",
-                          "Any LTO mode without Unified LTO")),
-    cl::value_desc("mode"), cl::init(LTO::LTOK_Default));
+static cl::opt<std::string> UnifiedLTOMode(
+    "unified-lto", cl::Optional, cl::ValueOptional,
+    cl::desc("Unified LTO mode: 0=existing pipeline (default, also when bare), "
+             "2=ThinLTO on merged optimized IR, "
+             "3=Full LTO on merged optimized IR; 1 reserved. "
+             "Legacy default/full/thin values are also accepted"),
+    cl::value_desc("mode"));
 
 static cl::opt<bool> EnableFreestanding(
     "lto-freestanding",
@@ -472,7 +470,25 @@ static int run(int argc, char **argv) {
       HasErrors = true;
   };
 
-  LTO::LTOKind LTOMode = UnifiedLTOMode;
+  LTO::LTOKind LTOMode = LTO::LTOK_Default;
+  if (UnifiedLTOMode == "full") {
+    LTOMode = LTO::LTOK_UnifiedRegular;
+  } else if (UnifiedLTOMode == "thin") {
+    LTOMode = LTO::LTOK_UnifiedThin;
+  } else if (UnifiedLTOMode.empty() || UnifiedLTOMode == "default" ||
+             UnifiedLTOMode == "0") {
+    LTOMode = LTO::LTOK_Default;
+  } else if (UnifiedLTOMode == "2") {
+    LTOMode = LTO::LTOK_TwoStageThin;
+  } else if (UnifiedLTOMode == "3") {
+    LTOMode = LTO::LTOK_TwoStageFull;
+  } else if (UnifiedLTOMode == "1") {
+    llvm::errs() << "unified LTO mode 1 is reserved\n";
+    return 1;
+  } else if (UnifiedLTOMode.getNumOccurrences()) {
+    llvm::errs() << "invalid unified LTO mode: " << UnifiedLTOMode << '\n';
+    return 1;
+  }
 
   std::unique_ptr<LTO> Lto;
   if (!DTLTODistributor.empty()) {

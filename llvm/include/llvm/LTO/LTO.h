@@ -642,6 +642,9 @@ private:
   Error runRegularLTO(AddStreamFn AddStream);
   Error runThinLTO(AddStreamFn AddStream, FileCache Cache,
                    const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols);
+  Error runTwoStageLTO(
+      AddStreamFn AddStream, FileCache Cache,
+      const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols);
 
   Error checkPartiallySplit();
 

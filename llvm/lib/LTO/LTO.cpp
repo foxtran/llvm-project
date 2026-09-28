@@ -696,7 +696,11 @@ LTO::LTO(Config Conf, ThinBackend Backend,
       ThinLTO(std::move(Backend)),
       GlobalResolutions(
           std::make_unique<DenseMap<StringRef, GlobalResolution>>()),
-      LTOMode(LTOMode) {
+      // Two-stage LTO preserves each input's original pipeline rather than
+      // applying the unified-bitcode backend override.
+      LTOMode(this->Conf.TwoStageLTO == Config::TwoStageLTOKind::None
+                  ? LTOMode
+                  : LTOK_Default) {
   if (Conf.KeepSymbolNameCopies || LTOKeepSymbolCopies) {
     Alloc = std::make_unique<BumpPtrAllocator>();
     GlobalResolutionSymbolSaver = std::make_unique<llvm::StringSaver>(*Alloc);
@@ -887,7 +891,8 @@ LTO::addModule(InputFile &Input, ArrayRef<SymbolResolution> InputRes,
         "compatible bitcode modules (use -funified-lto)",
         inconvertibleErrorCode());
 
-  if (LTOInfo->UnifiedLTO && LTOMode == LTOK_Default)
+  if (Conf.TwoStageLTO == Config::TwoStageLTOKind::None &&
+      LTOInfo->UnifiedLTO && LTOMode == LTOK_Default)
     LTOMode = LTOK_UnifiedThin;
 
   bool IsThinLTO = LTOInfo->IsThinLTO && (LTOMode != LTOK_UnifiedRegular);
@@ -1271,7 +1276,15 @@ unsigned LTO::getMaxTasks() const {
   CalledGetMaxTasks = true;
   auto ModuleCount = ThinLTO.ModulesToCompile ? ThinLTO.ModulesToCompile->size()
                                               : ThinLTO.ModuleMap.size();
-  return RegularLTO.ParallelCodeGenParallelismLevel + ModuleCount;
+  unsigned Tasks = RegularLTO.ParallelCodeGenParallelismLevel + ModuleCount;
+  // Reserve distinct task IDs for the final optimization/codegen stage.
+  if (Conf.TwoStageLTO == Config::TwoStageLTOKind::Full)
+    ++Tasks;
+  else if (Conf.TwoStageLTO == Config::TwoStageLTOKind::Thin)
+    // The second link reserves task 0 for regular LTO and uses task 1 for
+    // the single merged ThinLTO module.
+    Tasks += 2;
+  return Tasks;
 }
 
 // If only some of the modules were split, we cannot correctly handle
@@ -1370,16 +1383,37 @@ Error LTO::run(AddStreamFn AddStream, FileCache Cache) {
   if (SupportsHotColdNew)
     ThinLTO.CombinedIndex.setWithSupportsHotColdNew();
 
-  Error Result = runRegularLTO(AddStream);
-  if (!Result)
-    // This will reset the GlobalResolutions optional once done with it to
-    // reduce peak memory before importing.
-    Result = runThinLTO(AddStream, Cache, GUIDPreservedSymbols);
+  auto Run = [&]() -> Error {
+    if (Conf.TwoStageLTO != Config::TwoStageLTOKind::None) {
+      return runTwoStageLTO(AddStream, Cache, GUIDPreservedSymbols);
+    } else if (Error Err = runRegularLTO(AddStream)) {
+      return Err;
+    } else {
+      return runThinLTO(AddStream, Cache, GUIDPreservedSymbols);
+    }
+  };
+  Error Result = Run();
 
   if (StatsFile)
     PrintStatisticsJSON(StatsFile->os());
 
   return Result;
+}
+
+Error LTO::runTwoStageLTO(
+    AddStreamFn AddStream, FileCache Cache,
+    const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
+  if (Cache.isValid()) {
+    return createStringError(
+        inconvertibleErrorCode(),
+        Conf.TwoStageLTO == Config::TwoStageLTOKind::Full
+            ? "two-stage full LTO does not yet support the native "
+              "object cache"
+            : "two-stage ThinLTO does not yet support the native "
+              "object cache");
+  }
+  return createStringError(inconvertibleErrorCode(),
+                           "two-stage LTO implementation unavailable");
 }
 
 Error LTO::runRegularLTO(AddStreamFn AddStream) {

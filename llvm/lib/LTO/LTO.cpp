@@ -1910,7 +1910,7 @@ ThinBackend lto::createInProcessThinBackend(ThreadPoolStrategy Parallelism,
             AddStream, Cache, OnWrite, ShouldEmitIndexFiles,
             ShouldEmitImportsFiles, BitcodeLibFuncs);
       };
-  return ThinBackend(Func, Parallelism);
+  return ThinBackend(Func, Parallelism, /*SupportsModuleHooks=*/true);
 }
 
 StringLiteral lto::getThinLTODefaultCPU(const Triple &TheTriple) {

@@ -318,8 +318,10 @@ using ThinBackendFunction = std::function<std::unique_ptr<ThinBackendProc>(
 /// functions to instantiate a ThinBackend. Parallelism defines the thread pool
 /// strategy to be used for processing.
 struct ThinBackend {
-  ThinBackend(ThinBackendFunction Func, ThreadPoolStrategy Parallelism)
-      : Func(std::move(Func)), Parallelism(std::move(Parallelism)) {}
+  ThinBackend(ThinBackendFunction Func, ThreadPoolStrategy Parallelism,
+              bool SupportsModuleHooks = false)
+      : Func(std::move(Func)), Parallelism(std::move(Parallelism)),
+        SupportsModuleHooks(SupportsModuleHooks) {}
   ThinBackend() = default;
 
   std::unique_ptr<ThinBackendProc> operator()(
@@ -333,10 +335,13 @@ struct ThinBackend {
   }
   ThreadPoolStrategy getParallelism() const { return Parallelism; }
   bool isValid() const { return static_cast<bool>(Func); }
+  /// Whether every backend runs in-process and honors Config's module hooks.
+  bool supportsModuleHooks() const { return SupportsModuleHooks; }
 
 private:
   ThinBackendFunction Func = nullptr;
   ThreadPoolStrategy Parallelism;
+  bool SupportsModuleHooks = false;
 };
 
 /// This ThinBackend runs the individual backend jobs in-process.

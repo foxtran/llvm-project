@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LTO/LTO.h"
+#include "llvm/LTO/TwoStageLTO.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallSet.h"
@@ -1412,8 +1413,20 @@ Error LTO::runTwoStageLTO(
             : "two-stage ThinLTO does not yet support the native "
               "object cache");
   }
-  return createStringError(inconvertibleErrorCode(),
-                           "two-stage LTO implementation unavailable");
+
+  TwoStageLTO Stage(*this, std::move(AddStream), GUIDPreservedSymbols);
+  if (Error Err = Stage.prepare())
+    return Err;
+  if (Error Err = Stage.runFirstStage())
+    return Err;
+  if (!Stage.hasCapturedModules())
+    return Error::success();
+
+  LTOLLVMContext Ctx(Conf);
+  auto Merged = Stage.merge(Ctx);
+  if (!Merged)
+    return Merged.takeError();
+  return Stage.runSecondStage(**Merged);
 }
 
 Error LTO::runRegularLTO(AddStreamFn AddStream) {

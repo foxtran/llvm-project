@@ -395,6 +395,7 @@ LLVM_ABI ThinBackend createWriteIndexesThinBackend(
 ///   the link.
 class LLVM_ABI LTO {
   friend InputFile;
+  friend class TwoStageLTO;
 
 public:
   /// Unified LTO modes

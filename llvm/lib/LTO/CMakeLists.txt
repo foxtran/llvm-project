@@ -1,5 +1,6 @@
 add_llvm_component_library(LLVMLTO
   LTO.cpp
+  TwoStageLTO.cpp
   LTOBackend.cpp
   LTOModule.cpp
   LTOCodeGenerator.cpp

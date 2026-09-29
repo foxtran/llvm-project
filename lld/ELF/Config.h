@@ -142,6 +142,9 @@ enum class GnuStackKind { None, Exec, NoExec };
 // For --lto=
 enum LtoKind : uint8_t {UnifiedThin, UnifiedRegular, Default};
 
+// For --two-stage-lto=.
+enum class TwoStageLtoMode : uint8_t { None, Thin, Full };
+
 // For -z gcs=
 enum class GcsPolicy { Implicit, Never, Always };
 
@@ -560,6 +563,9 @@ struct Config {
 
   // When using a unified pre-link LTO pipeline, specify the backend LTO mode.
   LtoKind ltoKind = LtoKind::Default;
+
+  // Optional second LTO stage on merged optimized IR.
+  TwoStageLtoMode twoStageLtoMode = TwoStageLtoMode::None;
 
   unsigned threadCount;
 

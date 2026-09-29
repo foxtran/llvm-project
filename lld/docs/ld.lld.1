@@ -697,6 +697,21 @@ Print the names of the input files.
 .It Fl -trace-symbol Ns = Ns Ar symbol , Fl y Ar symbol
 Trace references to
 .Ar symbol .
+.It Fl -two-stage-lto Ns = Ns Ar mode
+Optimize Full-LTO and ThinLTO inputs using their respective pipelines,
+merge the optimized IR, then run a complete ThinLTO
+.Pq Cm thin
+or Full-LTO
+.Pq Cm full
+pipeline to produce a single native object.
+Without this option, the native objects from the original pipelines are
+linked directly.
+Two-stage LTO accepts mixed bitcode without requiring a unified pre-link
+pipeline, but requires in-process backends and does not support native object
+caching, partial compilation, or cross-DSO CFI.
+.It Fl -two-stage-lto
+Alias for
+.Fl -two-stage-lto=full .
 .It Fl -undefined Ns = Ns Ar symbol , Fl u Ar symbol
 If
 .Ar symbol

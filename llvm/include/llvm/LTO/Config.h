@@ -45,6 +45,7 @@ struct Config {
     FromPrevailing,
     ELF,
   };
+  enum class TwoStageLTOKind { None, Thin, Full };
   // Note: when adding fields here, consider whether they need to be added to
   // computeLTOCacheKey in LTO.cpp.
   std::string CPU;
@@ -64,6 +65,12 @@ struct Config {
   std::optional<CodeModel::Model> CodeModel;
   CodeGenOptLevel CGOptLevel = CodeGenOptLevel::Default;
   CodeGenFileType CGFileType = CodeGenFileType::ObjectFile;
+
+  /// Optional second LTO stage on merged optimized IR from Full LTO and ThinLTO.
+  /// Independent of the unified pre-link bitcode format. Requires in-process
+  /// backends and does not support native object caching.
+  TwoStageLTOKind TwoStageLTO = TwoStageLTOKind::None;
+
   unsigned OptLevel = 2;
   bool VerifyEach = false;
   bool DisableVerify = false;

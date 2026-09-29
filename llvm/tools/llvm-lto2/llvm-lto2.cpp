@@ -217,6 +217,16 @@ static cl::opt<LTO::LTOKind> UnifiedLTOMode(
                           "Any LTO mode without Unified LTO")),
     cl::value_desc("mode"), cl::init(LTO::LTOK_Default));
 
+static cl::opt<Config::TwoStageLTOKind> TwoStageLTOMode(
+    "two-stage-lto", cl::ValueOptional,
+    cl::desc("Select the final stage of two-stage LTO:"),
+    cl::values(clEnumValN(Config::TwoStageLTOKind::Thin, "thin",
+                         "ThinLTO on merged optimized IR"),
+               clEnumValN(Config::TwoStageLTOKind::Full, "full",
+                         "Full LTO on merged optimized IR (also when bare)"),
+               clEnumValN(Config::TwoStageLTOKind::Full, "", "")),
+    cl::value_desc("mode"), cl::init(Config::TwoStageLTOKind::None));
+
 static cl::opt<bool> EnableFreestanding(
     "lto-freestanding",
     cl::desc("Enable Freestanding (disable builtins / TLI) during LTO"),
@@ -342,6 +352,7 @@ static int run(int argc, char **argv) {
   std::vector<std::unique_ptr<MemoryBuffer>> MBs;
 
   Config Conf;
+  Conf.TwoStageLTO = TwoStageLTOMode;
   if (TimeTrace) {
     Conf.TimeTraceEnabled = TimeTrace;
     Conf.TimeTraceGranularity = TimeTraceGranularity;

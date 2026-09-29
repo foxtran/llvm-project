@@ -1879,6 +1879,17 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
     ctx.arg.mllvmOpts.emplace_back(arg->getValue());
   }
 
+  ctx.arg.twoStageLtoMode = TwoStageLtoMode::None;
+  if (auto *arg = args.getLastArg(OPT_two_stage_lto)) {
+    StringRef mode = arg->getValue();
+    if (mode == "thin")
+      ctx.arg.twoStageLtoMode = TwoStageLtoMode::Thin;
+    else if (mode == "full")
+      ctx.arg.twoStageLtoMode = TwoStageLtoMode::Full;
+    else
+      ErrAlways(ctx) << "invalid two-stage LTO mode: " << mode;
+  }
+
   ctx.arg.ltoKind = LtoKind::Default;
   if (auto *arg = args.getLastArg(OPT_lto)) {
     StringRef s = arg->getValue();

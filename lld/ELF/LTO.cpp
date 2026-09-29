@@ -55,6 +55,10 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
+  if (ctx.arg.twoStageLtoMode == TwoStageLtoMode::Thin)
+    c.TwoStageLTO = lto::Config::TwoStageLTOKind::Thin;
+  else if (ctx.arg.twoStageLtoMode == TwoStageLtoMode::Full)
+    c.TwoStageLTO = lto::Config::TwoStageLTOKind::Full;
 
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();

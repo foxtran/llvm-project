@@ -128,7 +128,9 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
       // If this is the combined module (not a ThinLTO backend compile) or the
       // user hasn't requested using the input module's path, emit to a file
       // named from the provided OutputFileName with the Task ID appended.
-      if (M.getModuleIdentifier() == "ld-temp.o" || !UseInputModulePath) {
+      if (M.getModuleIdentifier() == "ld-temp.o" ||
+          StringRef(M.getModuleIdentifier()).starts_with("ld-temp.stage2.") ||
+          !UseInputModulePath) {
         PathPrefix = OutputFileName;
         if (Task != (unsigned)-1)
           PathPrefix += utostr(Task) + ".";
@@ -147,9 +149,9 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
   };
 
   auto SaveCombinedIndex =
-      [=](const ModuleSummaryIndex &Index,
+      [=](StringRef Stage, const ModuleSummaryIndex &Index,
           const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols) {
-        std::string Path = OutputFileName + "index.bc";
+        std::string Path = OutputFileName + Stage.str() + "index.bc";
         std::error_code EC;
         raw_fd_ostream OS(Path, EC, sys::fs::OpenFlags::OF_None);
         // Because -save-temps is a debugging feature, we report the error
@@ -158,13 +160,28 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
           reportOpenError(Path, EC.message());
         writeIndexToFile(Index, OS);
 
-        Path = OutputFileName + "index.dot";
+        Path = OutputFileName + Stage.str() + "index.dot";
         raw_fd_ostream OSDot(Path, EC, sys::fs::OpenFlags::OF_Text);
         if (EC)
           reportOpenError(Path, EC.message());
         Index.exportToDot(OSDot, GUIDPreservedSymbols);
         return true;
       };
+
+  if (SaveTempsArgs.empty() || SaveTempsArgs.contains("combinedindex")) {
+    auto Stage2Hook = SecondStageCombinedIndexHook;
+    SecondStageCombinedIndexHook =
+        [=](const ModuleSummaryIndex &Index,
+            const DenseSet<GlobalValue::GUID> &Preserved) {
+          return (!Stage2Hook || Stage2Hook(Index, Preserved)) &&
+                 SaveCombinedIndex("stage2.", Index, Preserved);
+        };
+    CombinedIndexHook =
+        [=](const ModuleSummaryIndex &Index,
+            const DenseSet<GlobalValue::GUID> &Preserved) {
+          return SaveCombinedIndex("", Index, Preserved);
+        };
+  }
 
   if (SaveTempsArgs.empty()) {
     setHook("0.preopt", PreOptModuleHook);
@@ -173,7 +190,6 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
     setHook("3.import", PostImportModuleHook);
     setHook("4.opt", PostOptModuleHook);
     setHook("5.precodegen", PreCodeGenModuleHook);
-    CombinedIndexHook = SaveCombinedIndex;
   } else {
     if (SaveTempsArgs.contains("preopt"))
       setHook("0.preopt", PreOptModuleHook);
@@ -187,8 +203,6 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
       setHook("4.opt", PostOptModuleHook);
     if (SaveTempsArgs.contains("precodegen"))
       setHook("5.precodegen", PreCodeGenModuleHook);
-    if (SaveTempsArgs.contains("combinedindex"))
-      CombinedIndexHook = SaveCombinedIndex;
   }
 
   return Error::success();
